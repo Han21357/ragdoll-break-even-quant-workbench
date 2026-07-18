@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>老布偶猫回本之路</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='6' width='52' height='52' rx='14' fill='%23FFF8F0' stroke='%233d342b' stroke-width='4'/%3E%3Ccircle cx='24' cy='30' r='4' fill='%233d342b'/%3E%3Ccircle cx='40' cy='30' r='4' fill='%233d342b'/%3E%3Cpath d='M25 42Q32 48 39 42' fill='none' stroke='%23C4A898' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/css/tokens.css">
   <link rel="stylesheet" href="/static/css/layout.css">
   <link rel="stylesheet" href="/static/css/components.css">
@@ -11,7 +12,39 @@
 <body>
   <aside class="sidebar">
     <section class="brand-card">
-      <img class="mascot" src="/assets/mascot-reference.jpg" alt="老布偶猫">
+      <div class="mascot mascot-svg" aria-label="老布偶猫">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <ellipse cx="50" cy="54" rx="36" ry="34" fill="#FFF8F0"/>
+          <ellipse cx="50" cy="56" rx="33" ry="31" fill="#FFFAF5"/>
+          <path d="M18 32 Q14 10 28 20 Q24 30 22 36Z" fill="#FFF8F0" stroke="#E5DDD4" stroke-width="1.5"/>
+          <path d="M82 32 Q86 10 72 20 Q76 30 78 36Z" fill="#FFF8F0" stroke="#E5DDD4" stroke-width="1.5"/>
+          <path d="M21 29 Q19 18 27 23Q24 28 23 33Z" fill="#FDE8E8"/>
+          <path d="M79 29 Q81 18 73 23Q76 28 77 33Z" fill="#FDE8E8"/>
+          <circle cx="37" cy="50" r="13" fill="none" stroke="#4A3F35" stroke-width="2.8"/>
+          <circle cx="63" cy="50" r="13" fill="none" stroke="#4A3F35" stroke-width="2.8"/>
+          <line x1="50" y1="50" x2="50" y2="50" stroke="#4A3F35" stroke-width="2.8"/>
+          <line x1="24" y1="48" x2="18" y2="44" stroke="#4A3F35" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="76" y1="48" x2="82" y2="44" stroke="#4A3F35" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="37" cy="51" r="4.5" fill="#4A3F35"/>
+          <circle cx="63" cy="51" r="4.5" fill="#4A3F35"/>
+          <circle cx="38.5" cy="49.5" r="1.5" fill="#fff"/>
+          <circle cx="64.5" cy="49.5" r="1.5" fill="#fff"/>
+          <ellipse cx="50" cy="59" rx="3" ry="2.2" fill="#E8C4B0"/>
+          <path d="M44 64 Q50 70 56 64" fill="none" stroke="#C4A898" stroke-width="1.8" stroke-linecap="round"/>
+          <ellipse cx="28" cy="58" rx="6" ry="3.5" fill="#FDE8E8" opacity="0.65"/>
+          <ellipse cx="72" cy="58" rx="6" ry="3.5" fill="#FDE8E8" opacity="0.65"/>
+          <line x1="16" y1="56" x2="28" y2="58" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+          <line x1="16" y1="60" x2="28" y2="60" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+          <line x1="72" y1="58" x2="84" y2="56" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+          <line x1="72" y1="60" x2="84" y2="60" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+          <path d="M38 86 L42 96 L50 91 L58 96 L62 86 Z" fill="#D4915E"/>
+          <path d="M43 89 L50 93 L57 89" fill="none" stroke="#B87A45" stroke-width="1.2"/>
+          <path d="M36 85 Q50 90 64 85" fill="none" stroke="#E5DDD4" stroke-width="1.5"/>
+          <rect x="74" y="42" width="3.5" height="42" rx="1.8" fill="#C4956A" transform="rotate(18 75 63)"/>
+          <circle cx="77" cy="38" r="4" fill="#D4915E"/>
+        </svg>
+        <span class="avatar-dot"></span>
+      </div>
       <div>
         <strong>老布偶猫回本之路</strong>
         <span>AI量化研究与投资决策工作台</span>
@@ -59,6 +92,7 @@
     <header class="page-header">
       <div>
         <div class="breadcrumb">老布偶猫回本之路 / <span id="breadcrumbNow">总览</span></div>
+        <div id="headerGreeting" class="warm-greeting">老布偶猫正在整理今天的行情依据</div>
         <h1 id="pageTitle">总览</h1>
         <p id="pageSubtitle">每天打开后先看市场、组合、策略和复盘优先级。</p>
       </div>
@@ -70,18 +104,37 @@
 
     <section id="overview" class="view active">
       <div id="overviewMetrics" class="summary-grid skeleton-grid"></div>
-      <div class="split-grid">
-        <section class="work-card focus-card">
-          <div class="card-head"><h2>市场与组合</h2><span id="marketSourceTag" class="status-pill muted">来源待确认</span></div>
-          <div id="marketPortfolioPanel" class="market-combo"></div>
+      <section class="work-card panorama-card">
+        <div class="card-head">
+          <div><h2>行情全景</h2><p id="panoramaMeta" class="card-subtitle">正在读取真实行情结构</p></div>
+          <div class="chart-tools">
+            <button class="seg active" data-range="40">40日</button>
+            <button class="seg" data-range="20">20日</button>
+          </div>
+        </div>
+        <div id="indexStrip" class="index-strip"></div>
+        <div class="panorama-grid">
+          <div class="chart-panel">
+            <div class="chart-legend" id="indexLegend"></div>
+            <div id="panoramaChart" class="panorama-chart"></div>
+            <div id="chartTooltip" class="chart-tooltip"></div>
+          </div>
+          <div id="breadthPanel" class="breadth-panel"></div>
+        </div>
+        <div id="sectorHeatmap" class="sector-heatmap"></div>
+      </section>
+      <div class="overview-lower-grid">
+        <section class="work-card">
+          <div class="card-head"><h2>我的组合概览</h2><button class="text-btn" data-jump-view="portfolio">进入组合</button></div>
+          <div id="portfolioPreview" class="portfolio-preview"></div>
         </section>
         <section class="work-card">
-          <div class="card-head"><h2>今日行动中心</h2><span class="status-pill warning">按优先级</span></div>
+          <div class="card-head"><h2>今日信号与行动</h2><span class="status-pill warning">真实接口</span></div>
           <div id="actionList" class="task-list"></div>
         </section>
       </div>
-      <section class="work-card">
-        <div class="card-head"><h2>策略健康</h2><button class="text-btn" data-tab-target="strategy" data-tab="library">查看策略库</button></div>
+      <section class="work-card compact-health">
+        <div class="card-head"><h2>策略健康与最近回测</h2><button class="text-btn" data-jump-view="strategy" data-jump-tab="library">查看策略库</button></div>
         <div id="strategyHealthList" class="strategy-health-list"></div>
       </section>
     </section>
@@ -100,7 +153,7 @@
         <section id="marketBreadthPanel" class="work-card"></section>
       </div>
       <div class="tab-panel" data-panel="market:watch">
-        <section class="empty-state"><img src="/assets/mascot-reference.jpg" alt=""><h2>观察池等待接入</h2><p>这里将展示策略观察池和自选标的。当前不会用示例股票填充页面。</p></section>
+        <section class="empty-state"><img src="/assets/mascot-reference.jpg" alt=""><h2>观察池暂无真实标的</h2><p>保存策略筛选结果或添加自选后，这里会展示可追踪标的；当前不会用示例股票填充页面。</p></section>
       </div>
     </section>
 
@@ -232,15 +285,14 @@
   </main>
 
   <aside class="rightbar">
-    <section class="context-card">
-      <div class="context-head">
-        <span class="mini-cat"><img src="/assets/mascot-reference.jpg" alt="">情境辅助</span>
-        <strong id="contextTitle">今日必看</strong>
-      </div>
-      <div id="contextBody" class="context-body"></div>
-    </section>
+    <div class="rightbar-title"><span class="mini-cat mini-cat-svg"><span class="cat-face"></span>老布偶猫盯盘</span></div>
+    <div id="contextBody" class="context-body"></div>
   </aside>
 
+  <button id="catAssistantBtn" class="cat-assistant" data-jump-view="ai" title="老布偶猫助手">
+    <span class="cat-face"></span>
+    <span>问老布偶猫</span>
+  </button>
   <div id="toast" class="toast"></div>
   <script src="/static/vendor/lightweight-charts/lightweight-charts.standalone.production.js"></script>
   <script src="/static/js/api.js"></script>

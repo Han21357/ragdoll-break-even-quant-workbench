@@ -25,6 +25,7 @@ from app.services.backtest.engine import run_backtest
 from app.services.data.provenance import summarize_status
 from app.services.data.registry import registry
 from app.services.factors.registry import get_factor, list_factors
+from app.services.market import build_market_panorama
 from app.services.strategies.compiler import compile_strategy_from_text
 from app.services.strategies.screener import run_screening
 from app.services.strategies.validator import validate_strategy_payload
@@ -79,6 +80,13 @@ def market_regime():
         "method": "由涨跌家数、成交额等市场快照确定性派生；不是LLM判断。",
     }
     return jsonify({"ok": True, "regime": regime, "source_status": summarize_status(snapshot.provenance)})
+
+
+@bp.get("/market/panorama")
+def market_panorama():
+    data = build_market_panorama()
+    status = 200 if data.get("ok") else 503
+    return jsonify(data), status
 
 
 @bp.get("/factors")
@@ -349,4 +357,3 @@ def review_create():
     payload = request.get_json() or {}
     review = insert_review(payload)
     return jsonify({"ok": True, "review": review})
-

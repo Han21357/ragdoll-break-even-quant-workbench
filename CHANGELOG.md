@@ -2,6 +2,9 @@
 
 ## 2026-07-19
 
+- Rebuilt the home page as a real market panorama dashboard with four top cards, four-index normalized chart, market breadth structure, portfolio preview, signal/action center and multi-section right rail.
+- Added `/api/market/panorama` and a market panorama service for index normalization, breadth buckets, deterministic regime derivation, provenance and partial-state handling.
+- Restored the original ragdoll cat avatar, warm time-based greeting and assistant entry so the professional workbench keeps the legacy product warmth.
 - Rebuilt the quant workbench frontend around the legacy ragdoll product shell while keeping the modular backend, SQLite data layer, strategy DSL, screening and backtest APIs.
 - Reorganized the information architecture into six first-level modules: Overview, Market, Strategy Research, Portfolio, AI Researcher and Reviews, with a separate data-status utility.
 - Added a desktop three-column workspace with brand sidebar, adaptive main workspace and contextual right rail.

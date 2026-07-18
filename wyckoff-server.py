@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
+from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -1862,6 +1862,11 @@ def api_real_backtest_result(task_id):
 @app.route("/")
 def serve_index():
     return render_template("index.html")
+
+@app.route("/favicon.ico")
+def serve_favicon():
+    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="14" fill="#FFF8F0" stroke="#3d342b" stroke-width="4"/><circle cx="24" cy="30" r="4" fill="#3d342b"/><circle cx="40" cy="30" r="4" fill="#3d342b"/><path d="M25 42Q32 48 39 42" fill="none" stroke="#C4A898" stroke-width="4" stroke-linecap="round"/></svg>"""
+    return Response(svg, mimetype="image/svg+xml")
 
 @app.route("/assets/<path:path>")
 def serve_assets(path):
