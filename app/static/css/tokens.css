@@ -1,26 +1,44 @@
 :root {
-  --bg: #f8f4ea;
-  --surface: #fffdf7;
-  --surface-2: #eef6ec;
-  --ink: #27302a;
-  --muted: #69746b;
-  --line: #ded5c5;
-  --brand: #7a8f68;
-  --brand-2: #b08968;
-  --red-up: #c94f44;
-  --green-down: #2f8f64;
-  --blue: #53708f;
-  --shadow: 0 10px 30px rgba(59, 48, 34, .08);
+  --bg-main: #f1f3f1;
+  --bg-sidebar: #f8f6f1;
+  --bg-rightbar: #f4f6f4;
+  --surface: #fcfdfc;
+  --surface-warm: #fdf8f1;
+  --surface-muted: #f5f6f4;
+  --text-primary: #352c26;
+  --text-secondary: #75685e;
+  --text-muted: #a59a91;
+  --border: #d9dfdb;
+  --border-light: #e7ebe8;
+  --brand: #b58e65;
+  --brand-dark: #8e6946;
+  --brand-soft: #f4ebdd;
+  --up: #d95d4f;
+  --up-soft: #fff0ed;
+  --down: #3e9a70;
+  --down-soft: #edf8f2;
+  --info: #557fa8;
+  --info-soft: #edf3f8;
+  --warning: #d39a4d;
+  --warning-soft: #fff6e8;
+  --danger: #c84f4a;
+  --danger-soft: #fff0ef;
+  --shadow-soft: 0 8px 26px rgba(61, 52, 43, .06);
+  --shadow-mid: 0 14px 42px rgba(61, 52, 43, .1);
 }
 
 * { box-sizing: border-box; }
+html { min-width: 0; }
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--ink);
+  min-width: 0;
+  background: var(--bg-main);
+  color: var(--text-primary);
   font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
   letter-spacing: 0;
 }
-button, input, textarea { font: inherit; }
-a { color: var(--blue); }
+button, input, textarea, select { font: inherit; }
+button { letter-spacing: 0; }
+a { color: var(--info); }
+code, pre { font-family: "SFMono-Regular", Consolas, monospace; }
 

@@ -9,130 +9,237 @@
   <link rel="stylesheet" href="/static/css/components.css">
 </head>
 <body>
-  <aside class="nav">
-    <div class="brand">
-      <img src="/assets/mascot-reference.jpg" alt="">
+  <aside class="sidebar">
+    <section class="brand-card">
+      <img class="mascot" src="/assets/mascot-reference.jpg" alt="老布偶猫">
       <div>
         <strong>老布偶猫回本之路</strong>
         <span>AI量化研究与投资决策工作台</span>
       </div>
-    </div>
-    <button class="nav-item active" data-view="dashboard">工作台</button>
-    <button class="nav-item" data-view="market">市场雷达</button>
-    <button class="nav-item" data-view="lab">策略实验室</button>
-    <button class="nav-item" data-view="factors">因子研究</button>
-    <button class="nav-item" data-view="backtests">回测中心</button>
-    <button class="nav-item" data-view="portfolio">组合中心</button>
-    <button class="nav-item" data-view="ai">AI研究员</button>
-    <button class="nav-item" data-view="reviews">复盘</button>
-  </aside>
-
-  <main class="shell">
-    <section class="topline">
-      <div>
-        <p class="eyebrow">把你的投资想法，变成一套能验证、能跟踪、能复盘的量化策略。</p>
-        <h1>工作台</h1>
-      </div>
-      <div id="dataBadge" class="status-badge">数据状态检查中</div>
     </section>
 
-    <section id="dashboard" class="view active">
-      <div class="metric-grid">
-        <article class="metric"><span>今日市场状态</span><strong id="regimeTrend">待更新</strong><small id="regimeMeta">来源待确认</small></article>
-        <article class="metric"><span>今日策略信号</span><strong id="signalCount">0</strong><small>来自已保存策略</small></article>
-        <article class="metric"><span>持仓偏离来源策略</span><strong id="lineageDrift">0</strong><small>等待血缘关联</small></article>
-        <article class="metric"><span>回测任务</span><strong id="backtestState">未运行</strong><small>可恢复查询</small></article>
+    <section class="side-snapshot">
+      <div><span>持仓</span><strong id="sidePositions">--</strong></div>
+      <div><span>策略</span><strong id="sideStrategies">--</strong></div>
+      <div><span>待复盘</span><strong id="sideReviews">--</strong></div>
+    </section>
+
+    <nav class="nav-groups" aria-label="主导航">
+      <p>总览</p>
+      <button class="nav-item active" data-view="overview" data-title="总览" data-subtitle="每天打开后先看市场、组合、策略和复盘优先级。">
+        <span class="nav-icon" data-icon="home"></span><span>工作台</span><em id="badgeOverview">今日</em>
+      </button>
+      <p>研究</p>
+      <button class="nav-item" data-view="market" data-title="市场" data-subtitle="市场宽度、成交额、风险偏好和数据来源。">
+        <span class="nav-icon" data-icon="market"></span><span>市场</span><em id="badgeMarket">--</em>
+      </button>
+      <button class="nav-item" data-view="strategy" data-title="策略研究" data-subtitle="从自然语言想法到规则确认、数据检查、筛选、回测和体检。">
+        <span class="nav-icon" data-icon="strategy"></span><span>策略研究</span><em id="badgeStrategy">--</em>
+      </button>
+      <p>执行与跟踪</p>
+      <button class="nav-item" data-view="portfolio" data-title="组合" data-subtitle="模拟组合、真实持仓和策略血缘。">
+        <span class="nav-icon" data-icon="portfolio"></span><span>组合</span><em id="badgePortfolio">--</em>
+      </button>
+      <button class="nav-item" data-view="ai" data-title="AI研究员" data-subtitle="围绕市场、策略、回测、组合、持仓和决策记录做解释与诊断。">
+        <span class="nav-icon" data-icon="ai"></span><span>AI研究员</span><em>待核验</em>
+      </button>
+      <button class="nav-item" data-view="reviews" data-title="复盘" data-subtitle="对比模型信号、用户操作和结果偏差。">
+        <span class="nav-icon" data-icon="review"></span><span>复盘</span><em id="badgeReview">--</em>
+      </button>
+    </nav>
+
+    <section class="system-box">
+      <button class="utility-btn" data-view="system" data-title="数据状态" data-subtitle="检查数据源、LLM与本地版本。"><span class="nav-icon" data-icon="data"></span>数据状态</button>
+      <div class="system-line"><span id="sideDataStatus">数据检查中</span><span id="sideLlmStatus">LLM --</span></div>
+      <small>v3.1 · local first · no broker connection</small>
+    </section>
+  </aside>
+
+  <main class="main">
+    <header class="page-header">
+      <div>
+        <div class="breadcrumb">老布偶猫回本之路 / <span id="breadcrumbNow">总览</span></div>
+        <h1 id="pageTitle">总览</h1>
+        <p id="pageSubtitle">每天打开后先看市场、组合、策略和复盘优先级。</p>
       </div>
-      <div class="workflow-strip">
-        <span>发现市场机会</span><span>表达想法</span><span>AI拆解</span><span>用户确认</span><span>数据校验</span><span>筛选</span><span>回测</span><span>体检</span><span>保存版本</span><span>组合血缘</span><span>每日信号</span><span>复盘偏差</span>
+      <div class="header-actions">
+        <span id="lastUpdated" class="status-pill muted">尚未刷新</span>
+        <button id="refreshAllBtn" class="secondary">刷新</button>
       </div>
+    </header>
+
+    <section id="overview" class="view active">
+      <div id="overviewMetrics" class="summary-grid skeleton-grid"></div>
+      <div class="split-grid">
+        <section class="work-card focus-card">
+          <div class="card-head"><h2>市场与组合</h2><span id="marketSourceTag" class="status-pill muted">来源待确认</span></div>
+          <div id="marketPortfolioPanel" class="market-combo"></div>
+        </section>
+        <section class="work-card">
+          <div class="card-head"><h2>今日行动中心</h2><span class="status-pill warning">按优先级</span></div>
+          <div id="actionList" class="task-list"></div>
+        </section>
+      </div>
+      <section class="work-card">
+        <div class="card-head"><h2>策略健康</h2><button class="text-btn" data-tab-target="strategy" data-tab="library">查看策略库</button></div>
+        <div id="strategyHealthList" class="strategy-health-list"></div>
+      </section>
     </section>
 
     <section id="market" class="view">
-      <div class="section-head"><h2>市场雷达</h2><button id="refreshMarket" class="icon-btn" title="刷新市场状态">↻</button></div>
-      <div id="marketGrid" class="metric-grid"></div>
-      <div id="regimePanel" class="panel"></div>
+      <div class="tabbar">
+        <button class="tab active" data-tab-target="market" data-tab="radar">市场雷达</button>
+        <button class="tab" data-tab-target="market" data-tab="breadth">指数与宽度</button>
+        <button class="tab" data-tab-target="market" data-tab="watch">自选观察池</button>
+      </div>
+      <div class="tab-panel active" data-panel="market:radar">
+        <div id="marketRadarGrid" class="summary-grid"></div>
+        <section id="marketRegimeCard" class="work-card"></section>
+      </div>
+      <div class="tab-panel" data-panel="market:breadth">
+        <section id="marketBreadthPanel" class="work-card"></section>
+      </div>
+      <div class="tab-panel" data-panel="market:watch">
+        <section class="empty-state"><img src="/assets/mascot-reference.jpg" alt=""><h2>观察池等待接入</h2><p>这里将展示策略观察池和自选标的。当前不会用示例股票填充页面。</p></section>
+      </div>
     </section>
 
-    <section id="lab" class="view">
-      <div class="lab-grid">
-        <aside class="panel">
-          <h2>策略结构</h2>
-          <div id="factorMiniList" class="factor-list"></div>
-        </aside>
-        <section class="panel">
-          <h2>自然语言策略生成</h2>
-          <textarea id="ideaInput">找价格低于100元、最近没有进入下行通道、近5日没有大涨、行业景气较强、机构关注增加的股票。</textarea>
-          <div class="toolbar">
-            <button id="compileBtn">生成DSL</button>
-            <button id="validateBtn" class="secondary">校验规则</button>
-            <button id="saveStrategyBtn" class="secondary">保存v1.0</button>
-          </div>
-          <div id="compileResult" class="result-stack"></div>
+    <section id="strategy" class="view">
+      <div class="tabbar">
+        <button class="tab active" data-tab-target="strategy" data-tab="create">创建策略</button>
+        <button class="tab" data-tab-target="strategy" data-tab="library">策略库</button>
+        <button class="tab" data-tab-target="strategy" data-tab="factors">因子研究</button>
+        <button class="tab" data-tab-target="strategy" data-tab="screen">股票筛选</button>
+        <button class="tab" data-tab-target="strategy" data-tab="backtest">回测与体检</button>
+      </div>
+
+      <div class="tab-panel active" data-panel="strategy:create">
+        <section class="work-card">
+          <div class="stepper" id="strategyStepper"></div>
+          <div id="strategyStepContent" class="step-content"></div>
         </section>
-        <aside class="panel">
-          <h2>数据与筛选</h2>
-          <label class="field-label">股票池</label>
-          <input id="symbolsInput" placeholder="600519,300750,002415">
-          <div class="toolbar">
+      </div>
+
+      <div class="tab-panel" data-panel="strategy:library">
+        <section class="work-card">
+          <div class="card-head"><h2>策略库</h2><button id="reloadStrategiesBtn" class="secondary">刷新策略</button></div>
+          <div id="strategyLibrary" class="strategy-library"></div>
+        </section>
+      </div>
+
+      <div class="tab-panel" data-panel="strategy:factors">
+        <section class="factor-layout">
+          <div class="work-card">
+            <div class="card-head"><h2>因子库</h2><span id="factorCountTag" class="status-pill muted">--</span></div>
+            <div id="factorCategories" class="factor-categories"></div>
+            <div id="factorTable" class="table-wrap"></div>
+          </div>
+          <aside id="factorDetail" class="work-card detail-card"></aside>
+        </section>
+      </div>
+
+      <div class="tab-panel" data-panel="strategy:screen">
+        <section class="work-card">
+          <div class="card-head"><h2>股票筛选验证</h2><span class="status-pill info">使用已确认 DSL</span></div>
+          <div class="inline-form">
+            <label>股票池代码<input id="symbolsInput" placeholder="600519,300750,002415"></label>
             <button id="screenBtn">运行筛选</button>
           </div>
-          <div id="screenResult" class="result-stack"></div>
-        </aside>
-      </div>
-    </section>
-
-    <section id="factors" class="view">
-      <div class="section-head"><h2>因子研究</h2><span class="muted">分层收益、IC、Rank IC、覆盖率接口已预留</span></div>
-      <div id="factorTable" class="table-wrap"></div>
-    </section>
-
-    <section id="backtests" class="view">
-      <div class="backtest-grid">
-        <section class="panel">
-          <h2>回测配置</h2>
-          <div class="form-grid">
-            <label>股票池<input id="btStocks" value="600519,300750"></label>
-            <label>开始日期<input id="btStart" type="date" value="2025-01-01"></label>
-            <label>结束日期<input id="btEnd" type="date"></label>
-            <label>初始资金<input id="btCapital" type="number" value="100000"></label>
-            <label>持有天数<input id="btHoldDays" type="number" value="20"></label>
-            <label>最大持仓<input id="btMaxPositions" type="number" value="2"></label>
-          </div>
-          <button id="runBacktestBtn">运行真实回测</button>
-          <div id="backtestMeta" class="result-stack"></div>
-        </section>
-        <section class="panel chart-panel">
-          <h2>权益曲线</h2>
-          <div id="equityChart"></div>
-          <p class="attribution">Lightweight Charts™ by <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">TradingView</a></p>
+          <div id="screenResult" class="screen-result"></div>
         </section>
       </div>
-      <div id="backtestResult" class="result-stack"></div>
+
+      <div class="tab-panel" data-panel="strategy:backtest">
+        <div class="backtest-grid">
+          <section class="work-card">
+            <div class="card-head"><h2>回测配置</h2><button id="toggleAdvancedBt" class="text-btn">高级配置</button></div>
+            <div class="form-grid">
+              <label>股票池<input id="btStocks" value="600519,300750"></label>
+              <label>开始日期<input id="btStart" type="date" value="2025-01-01"></label>
+              <label>结束日期<input id="btEnd" type="date"></label>
+              <label>初始资金<input id="btCapital" type="number" value="100000"></label>
+              <label>持有天数<input id="btHoldDays" type="number" value="20"></label>
+              <label>最大持仓<input id="btMaxPositions" type="number" value="2"></label>
+            </div>
+            <div id="advancedBt" class="form-grid collapsed">
+              <label>手续费<input id="btCommission" type="number" step="0.0001" value="0.0003"></label>
+              <label>最低佣金<input id="btMinCommission" type="number" value="5"></label>
+              <label>印花税<input id="btStampTax" type="number" step="0.0001" value="0.001"></label>
+              <label>过户费<input id="btTransferFee" type="number" step="0.00001" value="0.00001"></label>
+              <label>滑点<input id="btSlippage" type="number" step="0.0001" value="0.0005"></label>
+              <label>整手<input id="btLotSize" type="number" value="100"></label>
+              <label>T+1<input id="btT1" type="number" value="1"></label>
+            </div>
+            <button id="runBacktestBtn">运行真实回测</button>
+            <div id="backtestProgress" class="bt-progress"></div>
+          </section>
+          <section class="work-card chart-card">
+            <div class="card-head"><h2>权益曲线</h2><span class="status-pill muted">Lightweight Charts</span></div>
+            <div id="equityChart"></div>
+            <p class="attribution">Lightweight Charts™ by <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">TradingView</a></p>
+          </section>
+        </div>
+        <div id="backtestResult" class="backtest-result"></div>
+      </div>
     </section>
 
     <section id="portfolio" class="view">
-      <div class="section-head"><h2>组合中心</h2><button id="createPaperPortfolio" class="secondary">创建模拟组合</button></div>
-      <div id="portfolioPanel" class="result-stack"></div>
+      <div class="tabbar">
+        <button class="tab active" data-tab-target="portfolio" data-tab="paper">模拟组合</button>
+        <button class="tab" data-tab-target="portfolio" data-tab="real">真实持仓</button>
+        <button class="tab" data-tab-target="portfolio" data-tab="lineage">策略血缘</button>
+      </div>
+      <div class="tab-panel active" data-panel="portfolio:paper">
+        <section class="work-card">
+          <div class="card-head"><h2>组合列表</h2><button id="createPaperPortfolio" class="secondary">创建模拟组合</button></div>
+          <div id="portfolioPanel" class="portfolio-list"></div>
+        </section>
+      </div>
+      <div class="tab-panel" data-panel="portfolio:real">
+        <section id="holdingsPanel" class="work-card"></section>
+      </div>
+      <div class="tab-panel" data-panel="portfolio:lineage">
+        <section id="lineagePanel" class="work-card"></section>
+      </div>
     </section>
 
     <section id="ai" class="view">
-      <div class="panel">
-        <h2>AI研究员</h2>
-        <div class="agent-grid">
-          <span>策略编译Agent</span><span>数据审计Agent</span><span>回测诊断Agent</span><span>稳健性Agent</span><span>组合风险Agent</span><span>个股研究Agent</span>
-        </div>
-        <div id="aiPanel" class="result-stack"></div>
-      </div>
+      <section class="work-card">
+        <div class="card-head"><h2>选择分析对象</h2><span class="status-pill warning">输出需待核验</span></div>
+        <div class="ai-grid" id="aiTaskGrid"></div>
+        <div id="aiOutput" class="ai-output"></div>
+      </section>
     </section>
 
     <section id="reviews" class="view">
-      <div class="panel">
-        <h2>复盘</h2>
-        <div id="reviewPanel" class="result-stack"></div>
-      </div>
+      <div id="reviewMetrics" class="summary-grid"></div>
+      <section class="work-card">
+        <div class="card-head"><h2>决策时间线</h2><button id="checkReviewsBtn" class="secondary">检查到期</button></div>
+        <div id="reviewTimeline" class="timeline"></div>
+      </section>
+      <section class="work-card">
+        <div class="card-head"><h2>偏差分类与月度总结</h2><span class="status-pill muted">仅基于真实记录</span></div>
+        <div id="reviewInsight" class="insight-grid"></div>
+      </section>
+    </section>
+
+    <section id="system" class="view">
+      <section class="work-card">
+        <div class="card-head"><h2>数据状态</h2><button id="reloadSystemBtn" class="secondary">重新检查</button></div>
+        <div id="systemPanel" class="system-detail"></div>
+      </section>
     </section>
   </main>
+
+  <aside class="rightbar">
+    <section class="context-card">
+      <div class="context-head">
+        <span class="mini-cat"><img src="/assets/mascot-reference.jpg" alt="">情境辅助</span>
+        <strong id="contextTitle">今日必看</strong>
+      </div>
+      <div id="contextBody" class="context-body"></div>
+    </section>
+  </aside>
 
   <div id="toast" class="toast"></div>
   <script src="/static/vendor/lightweight-charts/lightweight-charts.standalone.production.js"></script>
@@ -140,4 +247,3 @@
   <script src="/static/js/app.js"></script>
 </body>
 </html>
-
