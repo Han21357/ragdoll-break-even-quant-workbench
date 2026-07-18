@@ -2048,13 +2048,26 @@ async function aiAnalysis(focus) {
 
 function aiAnalyzeSingle(sid) { aiAnalysis(sid); }
 
+function showLegacyNotice(message) {
+  hideLoading();
+  const content = document.getElementById('analysisContent');
+  if (content) {
+    showModal('analysisModal');
+    content.innerHTML = '<div style="padding:18px;background:var(--bg-warm);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);line-height:1.6">' + escapeAgentText(message) + '</div>';
+    const actions = document.getElementById('analysisActions');
+    if (actions) actions.style.display = 'flex';
+    return;
+  }
+  console.warn(message);
+}
+
 async function applyAiSuggestions() {
   showLoading('应用 AI 建议到持仓...');
   try {
     const res = await fetch(API_BASE + '/api/analyze', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({focus:'all'})});
     const data = await res.json();
     const items = (data.adjustments&&data.adjustments.items)||[];
-    if (items.length === 0) { hideLoading(); alert('当前无调仓建议'); return; }
+    if (items.length === 0) { showLegacyNotice('当前无调仓建议'); return; }
     let applied = 0;
     items.forEach(item => {
       const h = holdings.find(x => x.sid === item.stock || x.name === item.stock);
@@ -2071,8 +2084,8 @@ async function applyAiSuggestions() {
     hideLoading();
     closeModal('analysisModal');
     renderHoldings();
-    alert(`已应用 ${applied} 条 AI 建议到持仓`);
-  } catch(err) { hideLoading(); alert('应用失败: '+err.message); }
+    showLegacyNotice(`已应用 ${applied} 条 AI 建议到持仓`);
+  } catch(err) { showLegacyNotice('应用失败: '+err.message); }
 }
 
 // ============================================================
@@ -2111,7 +2124,7 @@ async function runScreen() {
       }
     }
     if(!done) { content.innerHTML = '<p style="padding:24px;text-align:center;color:var(--text-muted)">扫描超时（数据源响应较慢），请稍后重试</p><div style="text-align:center;margin-top:12px"><button class="btn btn-primary btn-sm" onclick="runScreen()">🔄 重新扫描</button></div>'; document.getElementById('analysisActions').style.display = 'flex'; }
-  } catch(err) { hideLoading(); alert('筛选出错: ' + err.message); }
+  } catch(err) { showLegacyNotice('筛选出错: ' + err.message); }
 }
 
 async function runBacktest() {
@@ -2137,7 +2150,7 @@ async function runBacktest() {
         document.getElementById('analysisActions').style.display = 'flex';
       }
     }
-  } catch(err) { hideLoading(); alert('回测出错: ' + err.message); }
+  } catch(err) { showLegacyNotice('回测出错: ' + err.message); }
 }
 
 async function generateReport() {
@@ -2164,7 +2177,7 @@ async function generateReport() {
         document.getElementById('analysisActions').style.display = 'flex';
       }
     }
-  } catch(err) { hideLoading(); alert('研报生成出错: ' + err.message); }
+  } catch(err) { showLegacyNotice('研报生成出错: ' + err.message); }
 }
 function viewStockDetail(sid) {
   const holding = holdings.find(item => item.sid === sid);
@@ -2630,7 +2643,7 @@ async function loadAgentPanel() {
 
 function startAgentFromSelect() {
   const sel = document.getElementById('agentStockSelect');
-  if (!sel || !sel.value) { alert('请选择一只股票'); return; }
+  if (!sel || !sel.value) { showLegacyNotice('请选择一只股票'); return; }
   const [code, name] = sel.value.split('|');
   startAgentChain(code, name);
 }
@@ -2820,7 +2833,7 @@ async function recordAgentDecision() {
   } catch (error) {
     button.disabled = false;
     button.textContent = '重试记录';
-    alert(error.message);
+    showLegacyNotice(error.message);
   }
 }
 
@@ -3035,8 +3048,8 @@ async function saveQuantStrategy() {
       body: JSON.stringify(strategy)
     });
     const d = await r.json();
-    if (d.ok) { alert('策略已保存: ' + d.strategy.name); renderQuantPanelRefresh(); }
-  } catch(e) { alert('保存失败: ' + e.message); }
+    if (d.ok) { showLegacyNotice('策略已保存: ' + d.strategy.name); renderQuantPanelRefresh(); }
+  } catch(e) { showLegacyNotice('保存失败: ' + e.message); }
 }
 
 async function loadQuantStrategy(sid) {
@@ -3046,7 +3059,7 @@ async function loadQuantStrategy(sid) {
     quantSteps = s.steps || quantSteps;
     quantStrategyName = s.name || '';
     renderQuantPanelRefresh();
-  } catch(e) { alert('加载失败: ' + e.message); }
+  } catch(e) { showLegacyNotice('加载失败: ' + e.message); }
 }
 
 async function deleteQuantStrategy(sid) {
@@ -3054,7 +3067,7 @@ async function deleteQuantStrategy(sid) {
   try {
     await fetch(API_BASE + '/api/quant/strategy/' + sid, {method:'DELETE'});
     renderQuantPanelRefresh();
-  } catch(e) { alert('删除失败: ' + e.message); }
+  } catch(e) { showLegacyNotice('删除失败: ' + e.message); }
 }
 
 async function runQuantStrategy() {

@@ -1,173 +1,84 @@
-# 技术架构文档
+# Architecture
 
-## 1. 系统总览
-
-```
-┌─────────────────────────────────────────────────┐
-│              浏览器（前端单文件）                  │
-│         wyckoff-portfolio.html (201KB)           │
-│  14 个面板 · 原生 JS · 无框架 · 红涨绿跌          │
-└──────────────────────┬──────────────────────────┘
-                       │ HTTP /fetch
-┌──────────────────────┴──────────────────────────┐
-│              Flask 后端（71KB）                    │
-│            wyckoff-server.py                      │
-│                                                   │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │ 持仓 API  │ │ 行情 API  │ │  Agent 链路 API   │ │
-│  │ /portfolio│ │ /market  │ │  /agent/analyze   │ │
-│  └──────────┘ └──────────┘ └────────┬─────────┘ │
-│  ┌──────────┐ ┌──────────┐          │           │
-│  │ 量化选股  │ │ 回测引擎  │          │           │
-│  │ /quant/* │ │/backtest │          │           │
-│  └──────────┘ └──────────┘          │           │
-│  ┌──────────┐                       │           │
-│  │ 效果度量  │                       │           │
-│  │ /effect/*│                       │           │
-│  └──────────┘                       │           │
-└─────────────────────────────────────┼───────────┘
-                                      │
-                    ┌─────────────────┴──────────┐
-                    │     Agent 编排层            │
-                    │                             │
-                    │  ┌─────────────────────┐   │
-                    │  │ agent_chain.py       │   │
-                    │  │ 自研 5 层 10 节点     │   │
-                    │  │ LangGraph StateGraph │   │
-                    │  └─────────────────────┘   │
-                    │                             │
-                    │  ┌─────────────────────┐   │
-                    │  │ ta_adapter.py        │   │
-                    │  │ TradingAgents 适配器  │   │
-                    │  │ FakeTicker→baostock  │   │
-                    │  └─────────────────────┘   │
-                    └─────────────┬───────────────┘
-                                  │
-                    ┌─────────────┴───────────────┐
-                    │      数据 / LLM 层           │
-                    │                             │
-                    │  baostock (A 股行情)         │
-                    │  wyckoff CLI (市场扫描)      │
-                    │  TokenHub → DeepSeek-v4-pro │
-                    │  effect_tracker.py (追踪)   │
-                    └─────────────────────────────┘
+```text
+数据源
+-> 统一数据层
+-> 因子层
+-> 策略DSL
+-> AKQuant适配边界/回测执行
+-> 因子和绩效分析
+-> 策略体检
+-> 组合与持仓
+-> AI解释与复盘
 ```
 
-## 2. Agent 链路架构
+## Runtime
 
-### 2.1 自研 5 层链路
+- `wyckoff-server.py`：兼容入口，负责启动Flask、旧接口和安全静态文件。
+- `app/api/quant_workbench.py`：新版量化工作台API。
+- `app/templates/index.html`：新版工作台模板。
+- `app/static/css|js`：拆分后的前端资源。
 
-```python
-# agent_chain.py
-StateGraph:
-  START → market_scanner
-       → [wyckoff_analyst, technical_analyst, fundamental_analyst]  # 并行
-       → bull_researcher → bear_researcher → debate_summarizer
-       → trader → risk_manager → portfolio_manager
-       → END
+默认端口为 `8766`。CORS限制在 `.env` 的 `RAGDOLL_ALLOWED_ORIGINS`。根目录不再作为静态目录暴露。
+
+## Data Layer
+
+```text
+app/services/data/
+  base.py
+  models.py
+  registry.py
+  cache.py
+  provenance.py
+  providers/
+    akshare_provider.py
+    baostock_provider.py
 ```
 
-State 共享：`AgentState(TypedDict)` 携带 16 个字段，每层追加结果。
-Trace 日志：每步记录 layer/agent/content/duration_ms。
+AKShare是主数据源，Baostock是降级数据源。所有Provider返回 `DataResult`，包含 `ok/data/error/provenance`。空数据和接口失败分开处理。
 
-### 2.2 TradingAgents 集成
+## Factor Layer
 
-```python
-# ta_adapter.py
-# 关键：在 import tradingagents 之前注入假 yfinance
-sys.modules["yfinance"] = fake_module  # FakeTicker 用 baostock
-# 然后 TradingAgents 所有 import yfinance 都拿到 FakeTicker
+`app/services/factors/registry.py` 注册P0因子，状态包括 `available/partial/unavailable/experimental`。不可用因子不能进入正式策略。
+
+`calculator.py` 根据规范化日线计算MA、收益、波动率、RSI、MACD、OBV、ATR等确定性因子。
+
+## Strategy DSL
+
+`app/schemas/strategy.py` 定义 `StrategyDSL`、`ConditionGroup`、`Condition`。条件只允许白名单操作符，不允许任意Python。
+
+`app/services/strategies/compiler.py` 把自然语言投资想法转换成三层确认结果。`validator.py` 校验因子和数据可用性。`screener.py` 输出筛选漏斗和逐股解释。
+
+## Backtest
+
+```text
+app/services/backtest/
+  engine.py
+  akquant_adapter.py
+  result_normalizer.py
+  diagnostics.py
 ```
 
-7 角色：基本面/情绪/新闻/技术分析师 → 多空辩论 → 交易员 → 风控 → PM
+AKQuant被隔离在适配器后，前端永远只接收项目自己的稳定JSON结构。当前执行器计算A股成本、整手、T+1、滑点、权益曲线、回撤曲线、成交记录和体检。分红送转、涨跌停无法成交、退市和ST历史变化会作为限制显示。
 
-## 3. 效果度量闭环
+## Storage
 
-```
-record_prediction() ──→ .ai_effect_tracker.json
-                           │
-           7天后 check_matured_predictions()
-                           │
-              baostock 回查实际收盘价
-                           │
-              is_correct 判定
-              ┌──────────┼──────────┐
-           买入看涨    卖出看跌    持有看平
-              │          │          │
-              └──────────┼──────────┘
-                         │
-              _calc_stats()
-              ┌──────────┼──────────┐
-           准确率    平均收益    夏普比率
-```
+SQLite默认路径：`.ragdoll_data/ragdoll.sqlite3`。
 
-## 4. 数据流
+保存对象：
 
-### 4.1 市场数据
-```
-baostock subprocess → fetch_baostock_indices() → 后台线程更新缓存
-wyckoff screen CLI → build_market_data() → hot_sectors + regime
-→ /api/market → 前端 updateIndexCards() → 指数卡 + 板块 + 温度
-```
+- 策略
+- 策略版本
+- 回测任务和结果
+- 模拟组合
+- 持仓策略血缘
+- AI研究记录
+- 决策复盘
+- 迁移日志
 
-### 4.2 Agent 链路
-```
-POST /api/agent/analyze → task_id → 后台线程
-  → run_agent_chain(graph, code, name)
-    → 10 个节点顺序执行（8 次 LLM）
-    → 全程 trace 记录
-  → GET /api/agent/analyze/:task_id 轮询
-  → 前端 renderAgentResult() 展示
-  → 自动 record_prediction() 到效果追踪
-```
+旧JSON文件不删除。启动时自动备份并迁移，备份保存在 `.ragdoll_data/`。
 
-### 4.3 回测引擎
-```
-POST /api/backtest/run → task_id → 后台线程
-  → subprocess 调 baostock 获取历史 K 线
-  → 逐月模拟：选股 → 买入 → 持有 → 卖出
-  → 计算 6 项统计 + 权益曲线 + 月度收益
-  → baostock 失败时用模拟数据兜底
-```
+## AI Modules
 
-## 5. 前端架构
+主流程只保留结构化Agent角色：策略编译、数据审计、回测诊断、稳健性、组合风险和个股研究。旧 `agent_chain.py` 和 `ta_adapter.py` 是兼容/实验模块，不再作为量化策略生成和回测核心。
 
-### 5.1 Z-Index 层级规范
-```
-1:     base
-20:    sidebar / rightbar
-30:    fab / assistant button
-100:   sticky elements
-200:   dropdown menus
-1000:  modal content
-999:   modal overlay
-1100:  assistant panel
-9999:  loading overlay
-```
-
-### 5.2 非阻塞 Loading
-```javascript
-// 不再用全屏灰屏 overlay
-function showLoading(text) {
-  _loadingProgress = showAIProgressCard(text); // 右下角 320px 进度卡
-}
-```
-
-### 5.3 面板切换
-```javascript
-switchNav(el, page) {
-  // 特殊操作页：screen/backtest/report/pattern/config/settings/signals/quant/agent/realbacktest/effect
-  // 普通面板：隐藏所有 → 显示目标 → 加载数据
-}
-```
-
-## 6. 关键技术决策
-
-| 决策 | 原因 | 替代方案 |
-|------|------|---------|
-| 原生 HTML 不用 React/Vue | 单文件部署、无构建步骤 | React（但增加复杂度） |
-| Flask 不用 FastAPI | 已有代码基础、足够用 | FastAPI（异步更好但过度设计） |
-| LangGraph 不用 CrewAI | 状态管理+checkpoint+白盒 | CrewAI（更简单但不显深度） |
-| baostock 不用 Tushare | 免费无限制、A 股完整 | Tushare（需积分） |
-| TokenHub 不用直接 OpenAI | 免费、DeepSeek 中文好 | OpenAI（更贵） |
-| sys.modules 注入不改源码 | 升级安全、零侵入 | Fork TradingAgents（维护成本高） |

@@ -1,7 +1,7 @@
 #!/bin/bash
 # 威科夫投资工作台 · 自动重启守护
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="${PYTHON:-/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/python3}"
+PYTHON="${PYTHON:-$(command -v python3)}"
 SERVER="$ROOT/wyckoff-server.py"
 export PORT="${PORT:-8766}"
 echo "🐱 威科夫投资工作台 · 自动重启守护启动"

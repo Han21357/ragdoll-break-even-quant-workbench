@@ -7,6 +7,7 @@ import json
 import copy
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -17,19 +18,25 @@ from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-app = Flask(__name__, static_folder=".", static_url_path="")
-CORS(app)
+from app.api.quant_workbench import register_quant_workbench
+from config import ALLOWED_ORIGINS, PORT, PROJECT_DIR, PYTHON_BIN, WYCKOFF_BIN
+
+app = Flask(
+    __name__,
+    static_folder=str(PROJECT_DIR / "app" / "static"),
+    static_url_path="/static",
+    template_folder=str(PROJECT_DIR / "app" / "templates"),
+)
+CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
+register_quant_workbench(app)
 
 # ============================================================
 # CONSTANTS
 # ============================================================
-WYCKOFF_BIN = "/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/wyckoff"
-PYTHON_BIN = "/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/python3"
-PROJECT_DIR = Path(__file__).parent
 HOLDINGS_FILE = PROJECT_DIR / ".wyckoff_holdings.json"
 
 # Always resolve configuration relative to this project, regardless of the
@@ -707,7 +714,7 @@ def api_status():
         "llm_configured": bool(LLM_API_KEY),
         "llm_model": LLM_MODEL if LLM_API_KEY else None,
         "llm_provider": "TokenHub" if LLM_API_KEY else None,
-        "wyckoff_cli_available": Path(WYCKOFF_BIN).exists(),
+        "wyckoff_cli_available": bool(WYCKOFF_BIN) and Path(WYCKOFF_BIN).exists(),
         "data_dir": str(Path.home() / ".wyckoff"),
         "timestamp": datetime.now().isoformat(),
     })
@@ -823,7 +830,7 @@ def api_actions():
     return jsonify(actions[:8])
 
 # ——— 策略详情 ———
-@app.route("/api/strategies")
+@app.route("/api/legacy/strategy-matrix")
 def api_strategies():
     holdings, _ = get_live_holdings()
     def live_stats(strategy_id):
@@ -1798,134 +1805,45 @@ def api_effect_feedback():
 # ============================================================
 @app.route("/api/backtest/run", methods=["POST"])
 def api_backtest_run():
-    """用 baostock 历史数据进行确定性的等权组合回放。"""
+    """兼容旧入口：内部转到新版回测引擎。"""
+    from app.services.backtest.engine import run_backtest
     data = request.get_json() or {}
     stock_codes = data.get("stocks", [])
-    months = data.get("months", 12)
-    hold_days = data.get("hold_days", 10)
-    top_n = data.get("top_n", 5)
-    strategy_name = data.get("strategy", "wyckoff_default")
+    if not stock_codes:
+        return jsonify({
+            "deprecated": True,
+            "ok": False,
+            "error": "旧 /api/backtest/run 仍保留，但必须传入明确股票池；系统不会生成默认股票。请优先使用 POST /api/backtests。",
+        }), 400
+    months = int(data.get("months", 12))
+    hold_days = int(data.get("hold_days", 10))
 
     task_id = f"bt_{int(time.time()*1000)}"
 
     def _run_real_bt():
         tasks[task_id] = {"status": "running", "started_at": datetime.now().isoformat()}
         try:
-            import statistics
-            from datetime import timedelta
-            codes = stock_codes if stock_codes else ["603019", "600519", "300750", "002415", "300059"]
-            # 清除代理
-            clean_env = {**os.environ}
-            for k in ['http_proxy','https_proxy','HTTP_PROXY','HTTPS_PROXY','all_proxy','ALL_PROXY']:
-                clean_env.pop(k, None)
-
-            # 用 subprocess 调 baostock 获取每只股票的历史数据
-            bt_script = '''
-import baostock as bs, json, sys
-from datetime import datetime, timedelta
-
-bs.login()
-codes = sys.argv[1].split(",")
-months = int(sys.argv[2])
-end = datetime.now().strftime("%Y-%m-%d")
-start = (datetime.now() - timedelta(days=months*30+10)).strftime("%Y-%m-%d")
-result = {}
-for code in codes:
-    c = code.split(".")[0] if "." in code else code
-    market = "sh" if c.startswith("6") else "sz"
-    rs = bs.query_history_k_data_plus(f"{market}.{c}",
-        "date,close,pctChg", start_date=start, end_date=end, frequency="d")
-    rows = []
-    while (rs.error_code == "0") and rs.next():
-        rows.append(rs.get_row_data())
-    result[code] = rows
-bs.logout()
-print(json.dumps(result, ensure_ascii=False))
-'''
-            proc = subprocess.run(
-                [sys.executable, "-c", bt_script, ",".join(codes), str(months)],
-                capture_output=True, text=True, timeout=60, env=clean_env
-            )
-            stock_data = {}
-            if proc.returncode == 0 and proc.stdout.strip():
-                try:
-                    stock_data = json.loads(proc.stdout.strip())
-                except:
-                    stock_data = {}
-
-            # 没有真实历史数据时直接失败，避免随机曲线被误读为策略表现。
-            has_real_data = any(len(rows) > 0 for rows in stock_data.values())
-            if not has_real_data:
-                tasks[task_id] = {
-                    "status": "error",
-                    "error": "baostock 历史数据不可用，未生成模拟收益，请稍后重试",
-                }
+            end = datetime.now().date()
+            start = (end - timedelta(days=months * 31)).isoformat()
+            result = run_backtest({
+                "stocks": stock_codes,
+                "start_date": data.get("start_date", start),
+                "end_date": data.get("end_date", end.isoformat()),
+                "hold_days": hold_days,
+                "max_positions": int(data.get("top_n", 5)),
+                "initial_capital": float(data.get("initial_capital", 100000)),
+                "commission_rate": float(data.get("commission_rate", 0.0003)),
+                "min_commission": float(data.get("min_commission", 5)),
+                "stamp_tax_rate": float(data.get("stamp_tax_rate", 0.001)),
+                "transfer_fee_rate": float(data.get("transfer_fee_rate", 0.00001)),
+                "slippage": float(data.get("slippage", 0.0005)),
+                "lot_size": int(data.get("lot_size", 100)),
+                "sellable_after_days": int(data.get("sellable_after_days", 1)),
+            })
+            if not result.get("ok"):
+                tasks[task_id] = {"status": "error", "deprecated": True, "error": result.get("error"), "result": result}
                 return
-            data_source = "baostock真实数据"
-
-            # 逐月模拟回测
-            all_trades = []
-            monthly_returns = {}
-            equity_curve = []
-            total_equity = 100000
-
-            for m in range(months):
-                month_start = (datetime.now() - timedelta(days=(months - m) * 30)).strftime("%Y-%m-%d")
-                month_end = (datetime.now() - timedelta(days=(months - m - 1) * 30)).strftime("%Y-%m-%d")
-                # 当前版本是等权组合历史回放，不声称执行了因子选股策略。
-                selected = sorted(codes)[:min(top_n, len(codes))]
-                month_pnl = 0
-                for code in selected:
-                    rows = stock_data.get(code, [])
-                    month_rows = [r for r in rows if r[0] >= month_start and r[0] <= month_end]
-                    if len(month_rows) >= 2:
-                        entry = float(month_rows[0][1])
-                        exit_ = float(month_rows[-1][1])
-                        ret = (exit_ - entry) / entry * 100
-                        month_pnl += ret
-                        all_trades.append({
-                            "month": month_start[:7], "stock": code,
-                            "entry": round(entry, 2), "exit": round(exit_, 2),
-                            "return": round(ret, 2), "hold_days": len(month_rows),
-                        })
-                avg_ret = month_pnl / len(selected) if selected else 0
-                monthly_returns[month_start[:7]] = round(avg_ret, 2)
-                total_equity *= (1 + avg_ret / 100)
-                equity_curve.append({"month": month_start[:7], "equity": round(total_equity, 0)})
-
-            returns = list(monthly_returns.values())
-            wins = [r for r in returns if r > 0]
-            losses = [r for r in returns if r < 0]
-            total_return = (total_equity - 100000) / 100000 * 100
-            annual_return = total_return / months * 12
-            std = statistics.stdev(returns) if len(returns) > 1 else 1
-            sharpe = (annual_return - 3) / (std * (12 ** 0.5)) if std > 0 else 0
-
-            tasks[task_id] = {
-                "status": "done",
-                "backtest": {
-                    "strategy": strategy_name,
-                    "data_source": data_source,
-                    "period": f"{(datetime.now()-timedelta(days=months*30)).strftime('%Y-%m-%d')} ~ {datetime.now().strftime('%Y-%m-%d')}",
-                    "months": months,
-                    "initial_capital": 100000,
-                    "final_equity": round(total_equity, 0),
-                    "total_return": round(total_return, 2),
-                    "annual_return": round(annual_return, 2),
-                    "max_drawdown": round(min(returns) if returns else 0, 2),
-                    "sharpe_ratio": round(sharpe, 2),
-                    "win_rate": round(len(wins) / len(returns) * 100, 1) if returns else 0,
-                    "total_trades": len(all_trades),
-                    "win_trades": len(wins),
-                    "loss_trades": len(losses),
-                    "avg_win": round(sum(wins) / len(wins), 2) if wins else 0,
-                    "avg_loss": round(sum(losses) / len(losses), 2) if losses else 0,
-                    "monthly_returns": monthly_returns,
-                    "equity_curve": equity_curve,
-                    "trades": all_trades[-50:],
-                },
-                "completed_at": datetime.now().isoformat(),
-            }
+            tasks[task_id] = {"status": "done", "deprecated": True, "backtest": result, "completed_at": datetime.now().isoformat()}
         except Exception as e:
             import traceback
             tasks[task_id] = {"status": "error", "error": str(e), "traceback": traceback.format_exc()[-500:]}
@@ -1943,11 +1861,13 @@ def api_real_backtest_result(task_id):
 # ============================================================
 @app.route("/")
 def serve_index():
-    return send_from_directory(str(PROJECT_DIR), "wyckoff-portfolio.html")
+    return render_template("index.html")
 
-@app.route("/<path:path>")
-def serve_static(path):
-    return send_from_directory(str(PROJECT_DIR), path)
+@app.route("/assets/<path:path>")
+def serve_assets(path):
+    if path.startswith(".") or ".." in Path(path).parts:
+        abort(404)
+    return send_from_directory(str(PROJECT_DIR / "assets"), path)
 
 # ============================================================
 # MAIN
@@ -1956,7 +1876,7 @@ if __name__ == "__main__":
     print("🐱 威科夫投资工作台 v3 · 真实数据驱动 · 老布偶猫主题")
     print("   数据源: baostock + wyckoff screen")
     print("   LLM: deepseek-v4-pro")
-    port = int(os.getenv("PORT", "8765"))
+    port = PORT
     print(f"   http://localhost:{port}")
     # 启动后预热市场数据（不阻塞服务启动）
     def _warmup():

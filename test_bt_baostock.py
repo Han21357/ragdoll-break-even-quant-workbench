@@ -1,3 +1,9 @@
+import os
+import pytest
+
+if os.getenv("RUN_LIVE_TESTS") != "1":
+    pytest.skip("live baostock smoke test; set RUN_LIVE_TESTS=1 to run", allow_module_level=True)
+
 import baostock as bs, json, sys
 from datetime import datetime, timedelta
 

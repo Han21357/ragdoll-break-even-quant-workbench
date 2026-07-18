@@ -1,0 +1,11 @@
+# P1/P2 optional integrations. The app starts without these packages.
+alphalens-reloaded==0.4.4
+quantstats==0.0.64
+PyPortfolioOpt==1.5.6
+qlib==0.9.7
+
+# Experimental individual-stock research module.
+# tradingagents is intentionally optional because it pulls a large dependency tree.
+tradingagents==0.7.0
+yfinance==0.2.65
+

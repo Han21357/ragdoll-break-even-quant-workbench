@@ -4,6 +4,8 @@
 .wyckoff_holdings.json
 .quant_strategies.json
 .ai_effect_tracker.json
+.ragdoll_data/
+.pytest_cache/
 __pycache__/
 *.pyc
 *.bak

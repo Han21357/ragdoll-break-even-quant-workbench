@@ -1,4 +1,9 @@
 import os
+import pytest
+
+if os.getenv("RUN_LIVE_TESTS") != "1":
+    pytest.skip("live yfinance smoke test; set RUN_LIVE_TESTS=1 to run", allow_module_level=True)
+
 for k in ['http_proxy','https_proxy','HTTP_PROXY','HTTPS_PROXY','all_proxy','ALL_PROXY']:
     os.environ.pop(k, None)
 import yfinance as yf

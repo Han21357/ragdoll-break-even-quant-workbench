@@ -8,12 +8,13 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/python3</string>
-        <string>/Users/solojyhan/WorkBuddy/2026-07-10-11-19-43/wyckoff-server.py</string>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>/path/to/ragdoll-break-even/wyckoff-server.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/solojyhan/WorkBuddy/2026-07-10-11-19-43</string>
+    <string>/path/to/ragdoll-break-even</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -22,10 +23,10 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/solojyhan/WorkBuddy/2026-07-10-11-19-43/logs/stdout.log</string>
+    <string>/tmp/ragdoll-workbench.stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/solojyhan/WorkBuddy/2026-07-10-11-19-43/logs/stderr.log</string>
+    <string>/tmp/ragdoll-workbench.stderr.log</string>
 
     <key>ThrottleInterval</key>
     <integer>2</integer>

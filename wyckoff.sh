@@ -6,7 +6,11 @@
 #   ./wyckoff.sh model list   # 查看模型配置
 #   ./wyckoff.sh screen       # 全市场漏斗筛选
 
-WYCKOFF_BIN="/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/wyckoff"
+WYCKOFF_BIN="${WYCKOFF_BIN:-$(command -v wyckoff)}"
+if [ -z "$WYCKOFF_BIN" ]; then
+    echo "wyckoff CLI not found. Set WYCKOFF_BIN or install the CLI first." >&2
+    exit 1
+fi
 
 if [ $# -eq 0 ]; then
     exec "$WYCKOFF_BIN"

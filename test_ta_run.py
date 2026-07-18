@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """测试 TradingAgents 实际运行 A 股分析"""
 import os, sys
+import pytest
+
+if os.getenv("RUN_LIVE_TESTS") != "1":
+    pytest.skip("live TradingAgents run; set RUN_LIVE_TESTS=1 to run", allow_module_level=True)
+
 for k in ['http_proxy','https_proxy','HTTP_PROXY','HTTPS_PROXY','all_proxy','ALL_PROXY']:
     os.environ.pop(k, None)
 api_key = os.getenv("TOKENHUB_API_KEY") or os.getenv("OPENAI_API_KEY")

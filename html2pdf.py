@@ -1,8 +1,11 @@
-import weasyprint
 import os
+from pathlib import Path
 
-html_path = "/Users/solojyhan/Desktop/老布偶猫回本之路_项目交付包/02_老布偶猫回本之路_项目说明.html"
-pdf_path = "/Users/solojyhan/Desktop/老布偶猫回本之路_项目交付包/01_老布偶猫回本之路_项目说明.pdf"
+import weasyprint
+
+root = Path(__file__).resolve().parent
+html_path = os.getenv("RAGDOLL_EXPORT_HTML", str(root / "wyckoff-guide.html"))
+pdf_path = os.getenv("RAGDOLL_EXPORT_PDF", str(root / "老布偶猫回本之路_项目说明.pdf"))
 
 # 清除代理
 for k in ['http_proxy','https_proxy','HTTP_PROXY','HTTPS_PROXY','all_proxy','ALL_PROXY']:

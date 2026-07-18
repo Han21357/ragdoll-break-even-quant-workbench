@@ -7,7 +7,6 @@ TradingAgents 数据层适配器 — 用 baostock 替换 yfinance
 """
 import os, sys, json, subprocess, re, types
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
 
 PYTHON_BIN = sys.executable
 
@@ -24,6 +23,14 @@ def _run_baostock(script):
     except:
         pass
     return None
+
+def _run_baostock_script(script):
+    return _run_baostock(script)
+
+def _get_a_share_code(symbol):
+    text = str(symbol or "").strip().upper()
+    code = text.split(".")[0]
+    return re.sub(r"\D", "", code)
 
 def _a_code(ticker):
     """600519.SS → 600519"""
@@ -113,19 +120,22 @@ print(json.dumps(data, ensure_ascii=False))
         return info
 
     def get_financials(self, freq="quarterly"):
-        return MagicMock()
+        import pandas as pd
+        return pd.DataFrame()
 
     def get_balance_sheet(self, freq="quarterly"):
-        return MagicMock()
+        import pandas as pd
+        return pd.DataFrame()
 
     def get_cashflow(self, freq="quarterly"):
-        return MagicMock()
+        import pandas as pd
+        return pd.DataFrame()
 
     def get_earnings(self):
-        return MagicMock()
+        return {}
 
     def get_recommendations(self):
-        return MagicMock()
+        return []
 
     @property
     def calendar(self):
@@ -133,11 +143,11 @@ print(json.dumps(data, ensure_ascii=False))
 
     @property
     def institutional_holders(self):
-        return MagicMock()
+        return []
 
     @property
     def insider_transactions(self):
-        return MagicMock()
+        return []
 
     def news(self, **kwargs):
         return []
@@ -146,7 +156,7 @@ def install_fake_yfinance():
     """在 sys.modules 中注入假的 yfinance 模块"""
     fake_mod = types.ModuleType("yfinance")
     fake_mod.Ticker = FakeTicker
-    fake_mod.download = lambda *args, **kwargs: MagicMock()
+    fake_mod.download = lambda *args, **kwargs: __import__("pandas").DataFrame()
     fake_mod.pdr_override = lambda: None
     sys.modules["yfinance"] = fake_mod
     print("[TA Adapter] yfinance 模块已替换为 baostock 后端（FakeTicker）")
@@ -200,7 +210,7 @@ print(json.dumps(data, ensure_ascii=False))
 """
     data = _run_baostock_script(script)
     if not data:
-        return f"无法获取 {ticker} 的基本面数据，使用估值估算"
+        return f"基本面数据缺口（{ticker}）: baostock 当前未返回可核验利润/成长数据，本模块不会使用估算值替代事实。"
     
     lines = [f"股票: {ticker} 基本面数据（baostock）", ""]
     for row in data:

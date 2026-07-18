@@ -6,7 +6,7 @@
 # ============================================
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="${PYTHON:-/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/python3}"
+PYTHON="${PYTHON:-$(command -v python3)}"
 SERVER="$ROOT/wyckoff-server.py"
 LOG="$ROOT/logs/server.log"
 export PORT="${PORT:-8766}"

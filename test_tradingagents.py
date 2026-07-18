@@ -2,6 +2,11 @@
 """测试 TradingAgents 集成"""
 import os
 import sys
+import pytest
+
+if os.getenv("RUN_LIVE_TESTS") != "1":
+    pytest.skip("live TradingAgents import; set RUN_LIVE_TESTS=1 to run", allow_module_level=True)
+
 # 清除代理
 for k in ['http_proxy','https_proxy','HTTP_PROXY','HTTPS_PROXY','all_proxy','ALL_PROXY']:
     os.environ.pop(k, None)

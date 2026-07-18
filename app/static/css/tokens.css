@@ -1,0 +1,26 @@
+:root {
+  --bg: #f8f4ea;
+  --surface: #fffdf7;
+  --surface-2: #eef6ec;
+  --ink: #27302a;
+  --muted: #69746b;
+  --line: #ded5c5;
+  --brand: #7a8f68;
+  --brand-2: #b08968;
+  --red-up: #c94f44;
+  --green-down: #2f8f64;
+  --blue: #53708f;
+  --shadow: 0 10px 30px rgba(59, 48, 34, .08);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+}
+button, input, textarea { font: inherit; }
+a { color: var(--blue); }
+
