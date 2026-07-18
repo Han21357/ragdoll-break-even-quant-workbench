@@ -1,0 +1,11 @@
+.env
+.DS_Store
+.workbuddy/
+.wyckoff_holdings.json
+.quant_strategies.json
+.ai_effect_tracker.json
+__pycache__/
+*.pyc
+*.bak
+logs/
+results/

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WyckoffTradingAgent 本地部署指南</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --accent: #3b82f6;
+    --accent-light: #eff6ff;
+    --success: #10b981;
+    --success-light: #ecfdf5;
+    --warning: #f59e0b;
+    --warning-light: #fffbeb;
+    --danger: #ef4444;
+    --danger-light: #fef2f2;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 4px 24px rgba(0,0,0,.08);
+    --radius: 12px;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin:0 auto; padding: 60px 24px; }
+  header {
+    text-align: center;
+    padding: 48px 0 36px;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+    color: #fff;
+    border-radius: 0 0 24px 24px;
+    margin-bottom: 40px;
+  }
+  header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  header p { color: #94a3b8; font-size: 16px; }
+
+  .status-bar {
+    display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .status-card {
+    flex:1; min-width: 180px;
+    background: var(--card-bg); border-radius: var(--radius);
+    padding: 20px 24px; box-shadow: var(--shadow);
+    border-left: 4px solid var(--accent);
+  }
+  .status-card .label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; }
+  .status-card .value { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 4px; }
+  .status-card.ok { border-left-color: var(--success); }
+  .status-card.warn { border-left-color: var(--warning); }
+
+  .step { margin-bottom: 32px; }
+  .step-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    flex-shrink: 0;
+  }
+  .step-num.done { background: var(--success); }
+  .step-title { font-size: 20px; font-weight: 700; }
+  .step-body {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    box-shadow: var(--shadow);
+    margin-left: 48px;
+  }
+  .step-body p { margin-bottom: 12px; }
+  .step-body p:last-child { margin-bottom: 0; }
+
+  pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  code {
+    background: #f1f5f9;
+    color: #e11d48;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  .warning {
+    background: var(--warning-light);
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .warning strong { color: #d97706; }
+
+  .provider-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px; margin: 12px 0;
+  }
+  .provider-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .provider-card h4 { font-size: 15px; margin-bottom: 4px; }
+  .provider-card .api { font-size: 12px; color: var(--text-secondary); }
+  .provider-card .env { font-size: 12px; font-family: var(--font-mono); color: var(--accent); margin-top: 6px; }
+
+  .cmd-table { width:100%; border-collapse:collapse; margin:12px 0; }
+  .cmd-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .cmd-table td:first-child {
+    font-family: var(--font-mono); font-size: 13px;
+    background: #f8fafc; border-radius: 4px; white-space: nowrap;
+  }
+  .cmd-table td:last-child { color: var(--text-secondary); font-size: 14px; }
+
+  .shortcut {
+    display: inline-flex; align-items: center; gap:6px;
+    background: var(--accent-light); color: var(--accent);
+    padding: 8px 16px; border-radius: 24px;
+    font-size: 14px; font-weight: 600; margin: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WyckoffTradingAgent 本地部署指南</h1>
+  <p>威科夫量价分析 Agent — A股/港股/美股 · v0.9.155</p>
+</header>
+
+<div class="container">
+
+<!-- ====== STATUS ====== -->
+<div class="status-bar">
+  <div class="status-card ok">
+    <div class="label">Python 环境</div>
+    <div class="value">3.13.12 ✓</div>
+  </div>
+  <div class="status-card ok">
+    <div class="label">安装版本</div>
+    <div class="value">v0.9.155 ✓</div>
+  </div>
+  <div class="status-card ok">
+    <div class="label">CLI 就绪</div>
+    <div class="value">22 子命令 ✓</div>
+  </div>
+  <div class="status-card ok">
+    <div class="label">LLM 模型</div>
+    <div class="value">DeepSeek-V4-Pro ✓</div>
+  </div>
+</div>
+
+<!-- ====== STEP 1 ====== -->
+<div class="step">
+  <div class="step-header">
+    <span class="step-num done">✓</span>
+    <span class="step-title">第一步：环境已就绪</span>
+  </div>
+  <div class="step-body">
+    <p>已创建隔离 Python 虚拟环境并安装 <code>youngcan-wyckoff-analysis</code>（v0.9.155）及其全部 123 个依赖包。</p>
+    <p style="color:var(--text-secondary);font-size:13px;">
+      📁 venv: <code>/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/</code><br>
+      📁 本地数据: <code>~/.wyckoff/</code>（首次运行后自动创建）
+    </p>
+  </div>
+</div>
+
+<!-- ====== STEP 2 ====== -->
+<div class="step">
+  <div class="step-header">
+    <span class="step-num done">✓</span>
+    <span class="step-title">第二步：LLM 大模型已配置</span>
+  </div>
+  <div class="step-body">
+    <p>已通过腾讯 TokenHub 配置两个模型，默认使用 DeepSeek-V4-Pro：</p>
+
+    <table class="cmd-table">
+      <tr><td style="color:var(--success);font-weight:600;">deepseek ★ 默认</td><td>deepseek-v4-pro · openai_compatible · tokenhub.tencentmaas.com</td></tr>
+      <tr><td>deepseek-flash</td><td>deepseek-v4-flash · 更快更省，适合批量任务</td></tr>
+    </table>
+
+    <div class="warning">
+      <strong>切换模型</strong><br>
+      CLI 内输入 <code>/model</code> 可随时切换，或 <code>wyckoff model default &lt;id&gt;</code> 修改默认。<br>
+      TokenHub 端点同时支持 Qwen3.5-Plus、GLM-5.2、Kimi K2.7、MiniMax-M3 等多个模型，可用 <code>wyckoff model add</code> 添加。
+    </div>
+  </div>
+</div>
+
+<!-- ====== STEP 3 ====== -->
+<div class="step">
+  <div class="step-header">
+    <span class="step-num">3</span>
+    <span class="step-title">第三步：配置行情数据源</span>
+  </div>
+  <div class="step-body">
+    <p>WyckoffAgent 内置<strong>五级降级数据链路</strong>，确保至少有一种方式能获取到行情：</p>
+    <pre><code>tickflow(★首选) → tushare → akshare → baostock → efinance</code></pre>
+
+    <table class="cmd-table">
+      <tr><td style="color:var(--success); font-weight:600;">TickFlow ★ 首选</td><td>高质量 A股/港股/美股日线+实时行情+分钟K线+财务数据。免费模式可用历史日K线，完整模式需 API Key。</td></tr>
+      <tr><td>Tushare</td><td>需注册获取 Token（免费额度有限）</td></tr>
+      <tr><td>akshare</td><td>完全免费开源，无需 API Key，已自动安装</td></tr>
+      <tr><td>baostock</td><td>免费证券数据，已自动安装</td></tr>
+      <tr><td>efinance</td><td>免费金融数据接口，已自动安装</td></tr>
+    </table>
+
+    <div class="warning">
+      <strong>推荐做法</strong><br>
+      <strong>零配置即可使用</strong> — akshare/baostock/efinance 已随 pip 安装就绪，无需额外配置即可拉取 A 股历史日K线。先用免费源体验，后续需要实时数据和分钟K线时再注册 TickFlow。
+    </div>
+
+    <p><strong>如需 TickFlow 实时数据：</strong>注册后配置 API Key：</p>
+    <pre><code>export TICKFLOW_API_KEY="your-tickflow-key"</code></pre>
+  </div>
+</div>
+
+<!-- ====== STEP 4 ====== -->
+<div class="step">
+  <div class="step-header">
+    <span class="step-num" style="background:#94a3b8;">4</span>
+    <span class="step-title">第四步（可选）：Supabase 云端同步</span>
+  </div>
+  <div class="step-body">
+    <p><strong>不配置 Supabase 完全可用。</strong>所有数据默认存本地 SQLite（<code>~/.wyckoff/wyckoff.db</code>）。</p>
+    <p>配置 Supabase 后可实现多设备持仓同步、信号云端共享等高级功能：</p>
+    <pre><code>export SUPABASE_URL="https://xxx.supabase.co"
+export SUPABASE_KEY="your-anon-key"</code></pre>
+    <p style="color:var(--text-secondary);font-size:13px;">💡 也可加入知识星球（¥518/年）使用作者维护的共享基础设施，省去自己搭建运维成本。</p>
+  </div>
+</div>
+
+<!-- ====== STEP 5 ====== -->
+<div class="step">
+  <div class="step-header">
+    <span class="step-num">5</span>
+    <span class="step-title">第五步：启动使用</span>
+  </div>
+  <div class="step-body">
+    <p><strong>快速启动脚本已生成：</strong><code>./wyckoff.sh</code></p>
+
+    <h3 style="margin:16px 0 8px;">常用启动方式</h3>
+    <table class="cmd-table">
+      <tr><td><code>./wyckoff.sh</code></td><td>启动 CLI 对话（TUI 终端界面）</td></tr>
+      <tr><td><code>./wyckoff.sh dashboard</code></td><td>启动本地可视化面板（浏览器打开）</td></tr>
+      <tr><td><code>./wyckoff.sh model list</code></td><td>查看已配置的模型列表</td></tr>
+      <tr><td><code>./wyckoff.sh screen</code></td><td>直接执行全市场漏斗筛选</td></tr>
+      <tr><td><code>./wyckoff.sh report</code></td><td>生成 AI 深度研报</td></tr>
+      <tr><td><code>./wyckoff.sh backtest</code></td><td>策略历史回测</td></tr>
+      <tr><td><code>./wyckoff.sh session list</code></td><td>查看历史对话会话</td></tr>
+      <tr><td><code>./wyckoff.sh config tickflow &lt;key&gt;</code></td><td>配置 TickFlow API Key</td></tr>
+    </table>
+
+    <h3 style="margin:20px 0 8px;">CLI 内置快捷命令</h3>
+    <div style="margin:12px 0;">
+      <span class="shortcut">/model</span>
+      <span class="shortcut">/screen</span>
+      <span class="shortcut">/checkup</span>
+      <span class="shortcut">/report</span>
+      <span class="shortcut">/backtest</span>
+      <span class="shortcut">/daily</span>
+      <span class="shortcut">/fork</span>
+    </div>
+
+    <h3 style="margin:20px 0 8px;">直接使用完整路径</h3>
+    <pre><code># CLI
+/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/wyckoff
+
+# Dashboard
+/Users/solojyhan/.workbuddy/binaries/python/envs/wyckoff/bin/wyckoff dashboard</code></pre>
+
+    <div class="warning">
+      <strong>首次启动提示</strong><br>
+      第一次运行 wyckoff 时，会自动在 <code>~/.wyckoff/</code> 创建本地 SQLite 数据库和配置文件。启动后首先 <code>/model</code> 添加 LLM API Key。
+    </div>
+  </div>
+</div>
+
+<!-- ====== ARCH OVERVIEW ====== -->
+<div class="step" style="margin-top:40px;">
+  <div class="step-header">
+    <span style="width:36px;height:36px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;">📐</span>
+    <span class="step-title">本地部署架构一览</span>
+  </div>
+  <div class="step-body" style="text-align:center;">
+    <pre style="text-align:left;"><code>┌──────────────────────────────────────────────────┐
+│              ~/.wyckoff/ （本地数据目录）           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐  │
+│  │wyckoff   │ │wyckoff   │ │  agent.log       │  │
+│  │.json     │ │.db       │ │  （运行日志）     │  │
+│  │(模型配置) │ │(SQLite)  │ │                  │  │
+│  └──────────┘ └──────────┘ └──────────────────┘  │
+└──────────────────────────────────────────────────┘
+          ▲                  ▲
+          │ 数据持久化        │ 行情拉取
+          ▼                  ▼
+   ┌─────────────┐   ┌──────────────────┐
+   │  wyckoff    │   │  数据降级链路     │
+   │  CLI / TUI  │──▶│  tickflow→tushare │
+   │  (本地运行)  │   │  →akshare→baostock│
+   └──────┬──────┘   │  →efinance        │
+          │          └──────────────────┘
+          ▼
+   ┌──────────────────────────────┐
+   │   LLM Provider              │
+   │   Gemini/Claude/OpenAI/     │
+   │   DeepSeek/Qwen/Zhipu       │
+   └──────────────────────────────┘</code></pre>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
