@@ -22,7 +22,6 @@ from app.repositories.database import (
 )
 from app.schemas.strategy import StrategyDSL
 from app.services.backtest.engine import run_backtest
-from app.services.data.provenance import summarize_status
 from app.services.data.registry import registry
 from app.services.factors.registry import get_factor, list_factors
 from app.services.market import build_market_panorama
@@ -55,31 +54,29 @@ def data_status():
 
 @bp.get("/market/overview")
 def market_overview():
-    result = registry.call("get_market_snapshot")
-    if not result.ok:
-        return jsonify({"ok": False, "error": result.error, "provenance": [p.__dict__ for p in result.provenance]}), 503
-    return jsonify({"ok": True, "overview": result.data, "source_status": summarize_status(result.provenance)})
+    panorama = build_market_panorama()
+    breadth = dict(panorama.get("breadth") or {})
+    source = next((item.get("source") for item in panorama.get("provenance", []) if item.get("status") == "ok"), None)
+    breadth["source"] = source
+    return jsonify({
+        "ok": panorama["ok"],
+        "overview": breadth,
+        "source_status": {"status": panorama["status"], "sources": panorama.get("provenance", [])},
+    }), 200 if panorama["ok"] else 503
 
 
 @bp.get("/market/regime")
 def market_regime():
-    snapshot = registry.call("get_market_snapshot")
-    if not snapshot.ok:
-        return jsonify({"ok": False, "error": snapshot.error, "source_status": summarize_status(snapshot.provenance)}), 503
-    data = snapshot.data
-    total = data.get("total") or 1
-    up_ratio = (data.get("up_count") or 0) / total
-    amount = data.get("amount") or 0
-    regime = {
-        "trend": "强" if up_ratio > 0.58 else ("弱" if up_ratio < 0.42 else "震荡"),
-        "volatility": "中",
-        "breadth": "宽" if up_ratio > 0.58 else ("窄" if up_ratio < 0.42 else "中"),
-        "risk_appetite": "上升" if up_ratio > 0.55 and amount > 0 else ("下降" if up_ratio < 0.45 else "中性"),
-        "style": "均衡",
-        "as_of": data.get("as_of"),
-        "method": "由涨跌家数、成交额等市场快照确定性派生；不是LLM判断。",
-    }
-    return jsonify({"ok": True, "regime": regime, "source_status": summarize_status(snapshot.provenance)})
+    panorama = build_market_panorama()
+    regime = dict(panorama.get("regime") or {})
+    regime.setdefault("volatility", "中")
+    regime.setdefault("style", "均衡")
+    regime.setdefault("as_of", panorama.get("as_of"))
+    return jsonify({
+        "ok": panorama["ok"],
+        "regime": regime,
+        "source_status": {"status": panorama["status"], "sources": panorama.get("provenance", [])},
+    }), 200 if panorama["ok"] else 503
 
 
 @bp.get("/market/panorama")

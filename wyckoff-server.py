@@ -23,6 +23,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 from app.api.quant_workbench import register_quant_workbench
+from app.services.data.registry import registry as market_registry
 from config import ALLOWED_ORIGINS, PORT, PROJECT_DIR, PYTHON_BIN, WYCKOFF_BIN
 
 app = Flask(
@@ -38,16 +39,30 @@ register_quant_workbench(app)
 # CONSTANTS
 # ============================================================
 HOLDINGS_FILE = PROJECT_DIR / ".wyckoff_holdings.json"
+DEMO_HOLDINGS_FILE = PROJECT_DIR / "app" / "data" / "demo_holdings.json"
 
 # Always resolve configuration relative to this project, regardless of the
 # directory from which the server is launched.
 load_dotenv(PROJECT_DIR / ".env")
 
 # —— LLM ——
-LLM_URL = os.getenv("TOKENHUB_BASE_URL", "https://tokenhub.tencentmaas.com/v1").rstrip("/") + "/chat/completions"
-LLM_API_KEY = os.getenv("TOKENHUB_API_KEY") or os.getenv("OPENAI_API_KEY", "")
-LLM_MODEL = os.getenv("TOKENHUB_MODEL", "deepseek-v4-pro")
-LLM_TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "25"))
+if os.getenv("TOKENHUB_API_KEY"):
+    LLM_PROVIDER = "TokenHub"
+    LLM_BASE_URL = os.getenv("TOKENHUB_BASE_URL", "https://tokenhub.tencentmaas.com/v1")
+    LLM_API_KEY = os.getenv("TOKENHUB_API_KEY", "")
+    LLM_MODEL = os.getenv("TOKENHUB_MODEL", "deepseek-v4-pro")
+elif os.getenv("HUNYUAN_API_KEY"):
+    LLM_PROVIDER = "腾讯混元"
+    LLM_BASE_URL = os.getenv("HUNYUAN_BASE_URL", "https://api.hunyuan.cloud.tencent.com/v1")
+    LLM_API_KEY = os.getenv("HUNYUAN_API_KEY", "")
+    LLM_MODEL = os.getenv("HUNYUAN_MODEL", "hunyuan-turbos-latest")
+else:
+    LLM_PROVIDER = "OpenAI Compatible" if os.getenv("OPENAI_API_KEY") else None
+    LLM_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://tokenhub.tencentmaas.com/v1")
+    LLM_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    LLM_MODEL = os.getenv("OPENAI_MODEL", "deepseek-v4-pro")
+LLM_URL = LLM_BASE_URL.rstrip("/") + "/chat/completions"
+LLM_TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "90"))
 
 # —— Cache ——
 _cache = {}
@@ -199,11 +214,15 @@ def _looks_like_legacy_demo(holdings):
 
 
 def get_holdings_with_defaults():
-    """只返回用户真实录入的持仓，旧演示文件永不进入业务数据。"""
+    """优先返回用户持仓；空环境返回明确标记的内置示例组合。"""
     user = load_holdings()
     if user is not None and not _looks_like_legacy_demo(user):
         return user, True
-    return [], False
+    try:
+        demo = json.loads(DEMO_HOLDINGS_FILE.read_text())
+        return (demo if isinstance(demo, list) else []), False
+    except (OSError, json.JSONDecodeError):
+        return [], False
 
 # ============================================================
 # DATA PROVIDERS
@@ -302,52 +321,24 @@ def search_stock_catalog(query, limit=8):
     if cached is not None:
         return cached[:limit]
 
-    if normalized.isdigit():
-        if len(normalized) != 6:
-            return []
-        if normalized.startswith(("6", "9")):
-            query_mode, query_value = "code", f"sh.{normalized}"
-        elif normalized.startswith(("0", "3")):
-            query_mode, query_value = "code", f"sz.{normalized}"
-        else:
-            return []
-    else:
-        query_mode, query_value = "name", normalized
+    if normalized.isdigit() and (len(normalized) != 6 or not normalized.startswith(("0", "3", "6", "9"))):
+        return []
 
-    script = f'''
-import baostock as bs, io, json, sys
-mode = {json.dumps(query_mode)}
-value = {json.dumps(query_value, ensure_ascii=False)}
-old_stdout = sys.stdout
-sys.stdout = io.StringIO()
-rows = []
-try:
-    bs.login()
-    rs = bs.query_stock_basic(code=value) if mode == "code" else bs.query_stock_basic(code_name=value)
-    while (rs.error_code == "0") and rs.next():
-        raw_code, name, _ipo, _out, stock_type, status = rs.get_row_data()
-        if stock_type == "1" and status == "1" and raw_code.startswith(("sh.60", "sh.68", "sz.00", "sz.30")):
-            rows.append({{"raw_code": raw_code, "code": raw_code.split(".")[-1], "name": name}})
-    bs.logout()
-finally:
-    sys.stdout = old_stdout
-print(json.dumps(rows, ensure_ascii=False))
-'''
-    stdout, error = run_python(script, timeout=12)
-    if error or not stdout:
-        return None
-    try:
-        rows = json.loads(stdout)
-    except json.JSONDecodeError:
+    catalog = market_registry.call("get_stock_list")
+    if not catalog.ok:
         return None
 
     ranked = []
-    for row in rows:
-        market, market_label = _stock_market(row.get("raw_code"))
+    for row in catalog.data:
+        code_value = str(row.get("symbol") or "").zfill(6)
+        prefix = "sh." if code_value.startswith(("6", "9")) else "sz."
+        market, market_label = _stock_market(prefix + code_value)
+        if not market:
+            continue
         item = {
-            "code": row.get("code"), "name": row.get("name"),
+            "code": code_value, "name": row.get("name"),
             "market": market, "market_label": market_label,
-            "source": "baostock_stock_basic",
+            "source": row.get("source") or "akshare",
         }
         code = item["code"].lower()
         name = item["name"].lower().replace(" ", "")
@@ -371,7 +362,7 @@ print(json.dumps(rows, ensure_ascii=False))
 
 
 def fetch_latest_closes(holdings):
-    """批量读取用户持仓的最新真实日线收盘价。"""
+    """批量读取真实快照，AKShare 新浪优先，Baostock 日线降级。"""
     pairs = []
     for holding in holdings:
         raw_code = str(holding.get("code") or "").strip()
@@ -385,6 +376,30 @@ def fetch_latest_closes(holdings):
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
+
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=45)
+    quotes = {}
+    for item in pairs:
+        daily = market_registry.call("get_stock_daily", item["code"], start_date.isoformat(), end_date.isoformat(), "none")
+        if not daily.ok or not daily.data:
+            continue
+        latest = daily.data[-1]
+        previous = daily.data[-2] if len(daily.data) > 1 else latest
+        close = float(latest["close"])
+        previous_close = float(previous.get("close") or close)
+        quotes[item["code"]] = {
+            "close": round(close, 2),
+            "change_pct": round((close / previous_close - 1) * 100, 2) if previous_close else 0,
+            "volume": latest.get("volume"),
+            "amount_yi": round(float(latest.get("amount") or 0) / 1e8, 2),
+            "date": latest.get("trade_date"),
+            "source": latest.get("source") or "akshare",
+            "frequency": "1d",
+        }
+    if quotes:
+        _cache_set(cache_key, quotes, "market")
+        return quotes
 
     script = f'''
 import baostock as bs, io, json, sys
@@ -435,7 +450,7 @@ print(json.dumps(result, ensure_ascii=False))
 
 
 def get_live_holdings():
-    """用户成本和数量来自本地记录，现价只接受 Baostock 最新日线。"""
+    """用户成本和数量来自本地记录，现价来自可追溯行情适配器。"""
     raw_holdings, is_real = get_holdings_with_defaults()
     quotes = fetch_latest_closes(raw_holdings)
     resolved = []
@@ -713,7 +728,7 @@ def api_status():
         "models_count": len(models),
         "llm_configured": bool(LLM_API_KEY),
         "llm_model": LLM_MODEL if LLM_API_KEY else None,
-        "llm_provider": "TokenHub" if LLM_API_KEY else None,
+        "llm_provider": LLM_PROVIDER if LLM_API_KEY else None,
         "wyckoff_cli_available": bool(WYCKOFF_BIN) and Path(WYCKOFF_BIN).exists(),
         "data_dir": str(Path.home() / ".wyckoff"),
         "timestamp": datetime.now().isoformat(),
@@ -734,6 +749,8 @@ def api_portfolio():
 @app.route("/api/portfolio/summary")
 def api_portfolio_summary():
     holdings, is_real = get_live_holdings()
+    has_demo = any(h.get("is_demo") for h in holdings)
+    has_real = any(not h.get("is_demo") for h in holdings)
     priced = [h for h in holdings if h.get("price_status") == "ok"]
     total_value = sum(h["market_value"] for h in priced)
     total_pnl = sum(h["pnl"] for h in priced)
@@ -752,7 +769,8 @@ def api_portfolio_summary():
         "strategy_counts": sc,
         "profit_count": sum(1 for h in priced if h["pnl"] > 0),
         "loss_count": sum(1 for h in priced if h["pnl"] < 0),
-        "is_real_data": is_real,
+        "is_real_data": is_real and has_real,
+        "portfolio_kind": "mixed" if has_demo and has_real else "demo" if has_demo else "real" if has_real else "empty",
         "price_source": "baostock",
         "price_frequency": "1d",
     })
@@ -1123,7 +1141,7 @@ def api_report_result(task_id):
 def api_search_stocks():
     query = (request.args.get("q") or "").strip()
     if not query:
-        return jsonify({"results": [], "source": "baostock_stock_basic"})
+        return jsonify({"results": [], "source": "provider_registry"})
     try:
         limit = max(1, min(20, int(request.args.get("limit", 8))))
     except ValueError:
@@ -1133,7 +1151,7 @@ def api_search_stocks():
         return jsonify({"error": "股票列表数据源暂时不可用，请稍后重试"}), 503
     return jsonify({
         "results": results,
-        "source": "baostock_stock_basic",
+        "source": results[0].get("source") if results else "provider_registry",
         "as_of": datetime.now().strftime("%Y-%m-%d"),
     })
 
@@ -1160,6 +1178,8 @@ def api_add_holding():
     market = identity["market"]
 
     holdings, is_real = get_holdings_with_defaults()
+    if not is_real:
+        holdings = []
     if any(h.get("code") == code for h in holdings):
         return jsonify({"ok": False, "errors": [f"{code} 已在持仓列表中"]}), 400
 
@@ -1183,6 +1203,7 @@ def api_add_holding():
         "key_signals": [], "suggestion": data.get("suggestion") or "等待补充投资假设",
         "stop_loss": stop_loss,
         "target": target, "weight": 0,
+        "is_demo": bool(data.get("is_demo", False)),
         "created_at": datetime.now().isoformat(),
     }
     holdings.append(new_h)

@@ -15,7 +15,12 @@ DB_PATH = Path(os.getenv("RAGDOLL_DB_PATH", DATA_DIR / "ragdoll.sqlite3")).resol
 PORT = int(os.getenv("PORT", "8766"))
 
 PYTHON_BIN = os.getenv("PYTHON_BIN") or sys.executable
-WYCKOFF_BIN = os.getenv("WYCKOFF_BIN") or shutil.which("wyckoff") or ""
+_legacy_wyckoff = Path.home() / ".workbuddy" / "binaries" / "python" / "envs" / "wyckoff" / "bin" / "wyckoff"
+WYCKOFF_BIN = (
+    os.getenv("WYCKOFF_BIN")
+    or shutil.which("wyckoff")
+    or (str(_legacy_wyckoff) if _legacy_wyckoff.exists() else "")
+)
 
 ALLOWED_ORIGINS = [
     origin.strip()

@@ -182,20 +182,27 @@ async function loadSystem() {
 }
 
 async function loadMarket() {
-  const [panorama, legacy, signals, actions, overview, regime] = await Promise.all([
+  const [panorama, legacy, signals, actions] = await Promise.all([
     safeLoad("行情全景", () => api.get("/api/market/panorama")),
     safeLoad("兼容市场", () => api.get("/api/market")),
     safeLoad("市场信号", () => api.get("/api/signals")),
     safeLoad("行动建议", () => api.get("/api/actions")),
-    safeLoad("市场概览", () => api.get("/api/market/overview")),
-    safeLoad("市场环境", () => api.get("/api/market/regime")),
   ]);
   state.marketPanorama = panorama;
   state.legacyMarket = legacy;
   state.marketSignals = Array.isArray(signals) ? signals : [];
   state.marketActions = Array.isArray(actions) ? actions : [];
-  state.marketOverview = overview;
-  state.marketRegime = regime;
+  if (panorama.__error) {
+    state.marketOverview = panorama;
+    state.marketRegime = panorama;
+  } else {
+    state.marketOverview = {
+      ok: panorama.ok,
+      overview: { ...(panorama.breadth || {}), source: primarySource(panorama) },
+      source_status: { status: panorama.status, sources: panorama.provenance || [] },
+    };
+    state.marketRegime = { ok: panorama.ok, regime: panorama.regime || {} };
+  }
 }
 
 async function loadPortfolio() {
@@ -263,7 +270,7 @@ function renderOverview() {
     summaryCard("市场环境", r.label || "待确认", `${r.trend || "趋势待确认"} · ${r.method || "确定性派生"}`, "market", "info"),
     summaryCard("市场宽度", b.up_ratio != null ? `${(b.up_ratio * 100).toFixed(1)}%` : "不可用", `${safeNum(b.up_count)} 上涨 / ${safeNum(b.down_count)} 下跌 · 中位 ${pct(b.median_change)}`, "market", b.up_ratio == null ? "warning" : b.up_ratio >= .55 ? "up" : b.up_ratio <= .45 ? "down" : "brand"),
     summaryCard("全市场成交额", b.amount ? `${(b.amount / 1e8).toFixed(1)}亿` : "不可用", `${panorama.as_of || b.as_of || "日期待确认"} · ${primarySource(panorama)}`, "market", "brand"),
-    p.positions ? summaryCard("我的组合盈亏", pct(p.total_pnl_pct), `${money(p.total_pnl)} · 行情覆盖 ${p.priced_positions ?? 0}/${p.positions ?? 0}`, "portfolio", (p.total_pnl || 0) >= 0 ? "up" : "down")
+    p.positions ? summaryCard(p.portfolio_kind === "demo" ? "示例组合盈亏" : "我的组合盈亏", pct(p.total_pnl_pct), `${money(p.total_pnl)} · 行情覆盖 ${p.priced_positions ?? 0}/${p.positions ?? 0}`, "portfolio", (p.total_pnl || 0) >= 0 ? "up" : "down")
       : summaryCard("我的组合盈亏", "尚未添加真实持仓", "进入组合页添加持仓后显示盈亏和覆盖率", "portfolio", "warning"),
   ];
   $("overviewMetrics").innerHTML = cards.join("");
@@ -352,18 +359,23 @@ function miniKpi(label, value, meta) {
 }
 
 function renderSectorHeatmap() {
-  const sectors = (state.legacyMarket?.hot_sectors || state.marketPanorama?.sectors || []).slice(0, 8);
+  const legacySectors = state.legacyMarket?.hot_sectors || [];
+  const sectors = (legacySectors.length ? legacySectors : state.marketPanorama?.sectors || []).slice(0, 8);
   if (!sectors.length) {
     const refreshing = state.legacyMarket?.refreshing || state.legacyMarket?.provenance?.hot_sectors?.status === "loading";
     return `<div class="notice">${refreshing ? "板块扫描正在后台刷新；指数和市场宽度已先展示。" : "暂无真实板块主线数据；不会显示固定假板块。"}</div>`;
   }
-  const maxHeat = Math.max(...sectors.map((s) => Number(s.heat) || 0), 1);
+  const intensity = (sector) => Number(sector.heat ?? sector.amount) || 0;
+  const maxHeat = Math.max(...sectors.map(intensity), 1);
   return sectors.map((s) => {
     const pctValue = Number(s.change_pct);
-    const bg = pctValue >= 0 ? `rgba(217, 93, 79, ${Math.min(.28, .08 + (Number(s.heat) || 0) / maxHeat * .2)})` : "rgba(62, 154, 112, .18)";
-    return `<button class="sector-tile" data-jump-view="market" title="${html(s.source || "source")} · 热度 ${html(s.heat ?? "--")} · 涨停 ${html(s.limit_up ?? "--")}" style="background:${bg}">
+    const bg = pctValue >= 0 ? `rgba(217, 93, 79, ${Math.min(.28, .08 + intensity(s) / maxHeat * .2)})` : "rgba(62, 154, 112, .18)";
+    const detail = s.heat != null
+      ? `热度 ${s.heat} · 涨停 ${s.limit_up ?? "--"}`
+      : `${s.stocks ?? "--"} 只 · 龙头 ${s.leader || "待确认"}`;
+    return `<button class="sector-tile" data-jump-view="market" title="${html(s.source || "source")} · ${html(detail)}" style="background:${bg}">
       <strong>${html(s.name || "未命名板块")}</strong><span class="${pctValue >= 0 ? "market-up" : "market-down"}">${signedPct(pctValue)}</span>
-      <small>热度 ${html(s.heat ?? "--")} · 涨停 ${html(s.limit_up ?? "--")} · ${html(s.source || "source")}</small>
+      <small>${html(detail)} · ${html(s.source || "source")}</small>
     </button>`;
   }).join("");
 }
@@ -381,7 +393,7 @@ function renderPortfolioPreview() {
     return `<div class="holding-preview-row">
       <div><strong>${html(h.name || h.code || h.symbol)}</strong><small>${html(h.code || h.symbol || "")} · ${html(h.price_date || h.as_of || "日期待确认")}</small></div>
       <div>最新价<small>${formatNumber(h.price ?? h.latest_price, 2)}</small></div>
-      <div>当日<small class="${toneFromNumber(h.change_pct)}">${signedPct(h.change_pct)}</small></div>
+      <div>当日<small class="${toneFromNumber(h.daily_change_pct)}">${signedPct(h.daily_change_pct)}</small></div>
       <div>盈亏<small class="${toneFromNumber(pnlPct)}">${pct(pnlPct)}</small></div>
       <div>权重<small>${h.market_value ? `${(Number(h.market_value) / pricedValue * 100).toFixed(1)}%` : "不可用"}</small></div>
       <div>信号<small>${html(signal)}</small></div>
@@ -927,7 +939,8 @@ function renderPortfolio() {
 
 function renderHoldings() {
   if (!state.holdings.length) return emptyBlock("暂无真实持仓", "通过旧兼容持仓接口添加真实持仓后，这里会显示价格、成本、收益和信号。");
-  return `<div class="card-head"><h2>真实持仓</h2><span class="status-pill muted">${state.holdings.length} 只</span></div>${state.holdings.map((h) => `<div class="holding-row">
+  const demoOnly = state.holdings.every((h) => h.is_demo);
+  return `<div class="card-head"><h2>${demoOnly ? "示例持仓" : "真实持仓"}</h2><span class="status-pill ${demoOnly ? "warning" : "muted"}">${state.holdings.length} 只${demoOnly ? " · 模拟" : ""}</span></div>${state.holdings.map((h) => `<div class="holding-row">
     <div class="row-title"><strong>${html(h.name || h.code)}</strong><span>${html(h.code)} · ${html(h.price_source || "无来源")} ${html(h.price_date || "")}</span></div>
     <div class="row-cell">现价<small>${html(h.price ?? "不可用")}</small></div>
     <div class="row-cell">成本<small>${html(h.cost ?? "--")}</small></div>

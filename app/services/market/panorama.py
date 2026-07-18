@@ -1,12 +1,18 @@
 """Build the real market panorama used by the workbench home page."""
 from __future__ import annotations
 
+import json
+import time
 from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
 from app.services.data.models import DataResult, SourceStatus
 from app.services.data.registry import registry as default_registry
+from config import CACHE_DIR
+
+PANORAMA_CACHE_FILE = CACHE_DIR / "market_panorama.json"
+PANORAMA_DISK_TTL = 12 * 3600
 
 INDEX_SPECS = [
     {"id": "sh", "symbol": "sh000001", "name": "上证指数"},
@@ -28,6 +34,10 @@ BUCKETS = [
 
 def build_market_panorama(registry=default_registry, window: int = 40) -> dict[str, Any]:
     """Return a partial-friendly market panorama without generating invented values."""
+    if registry is default_registry:
+        cached = _load_cached_panorama()
+        if cached is not None:
+            return cached
     provenance: list[dict[str, Any]] = []
     limitations: list[str] = []
     today = date.today()
@@ -62,6 +72,14 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
                 "series": [],
             })
 
+    sectors = []
+    sector_result = registry.call("get_sector_snapshot")
+    provenance.extend(_as_dicts(sector_result.provenance))
+    if sector_result.ok and isinstance(sector_result.data, list):
+        sectors = sector_result.data[:8]
+    else:
+        limitations.append("行业板块快照不可用。")
+
     ok_indices = [item for item in indices if item.get("status") == "ok"]
     as_of_values = [item.get("as_of") for item in ok_indices if item.get("as_of")]
     status = "ok" if ok_indices and breadth and breadth.get("status") == "ok" else ("partial" if ok_indices or breadth else "error")
@@ -69,7 +87,7 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
         limitations.append("四大指数历史序列不可用，走势图为空。")
 
     regime = build_regime(breadth)
-    return {
+    result = {
         "ok": status != "error",
         "status": status,
         "as_of": max(as_of_values) if as_of_values else (breadth or {}).get("as_of"),
@@ -77,10 +95,38 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
         "indices": indices,
         "breadth": breadth or empty_breadth("unavailable"),
         "regime": regime,
-        "sectors": [],
+        "sectors": sectors,
         "provenance": provenance,
         "limitations": limitations,
     }
+    if registry is default_registry and result["ok"]:
+        _save_cached_panorama(result)
+    return result
+
+
+def _load_cached_panorama() -> dict[str, Any] | None:
+    try:
+        if time.time() - PANORAMA_CACHE_FILE.stat().st_mtime > PANORAMA_DISK_TTL:
+            return None
+        payload = json.loads(PANORAMA_CACHE_FILE.read_text())
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        if not data.get("ok"):
+            return None
+        data = dict(data)
+        data["cache"] = {"status": "local", "saved_at": payload.get("saved_at")}
+        return data
+    except (OSError, AttributeError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _save_cached_panorama(data: dict[str, Any]) -> None:
+    try:
+        PANORAMA_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = PANORAMA_CACHE_FILE.with_suffix(".tmp")
+        temp_path.write_text(json.dumps({"saved_at": time.time(), "data": data}, ensure_ascii=False))
+        temp_path.replace(PANORAMA_CACHE_FILE)
+    except OSError:
+        pass
 
 
 def build_breadth(rows: list[dict[str, Any]]) -> dict[str, Any]:

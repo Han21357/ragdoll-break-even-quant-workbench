@@ -2,6 +2,9 @@
 
 ## 2026-07-19
 
+- Added resilient AKShare Sina-first market snapshots and single-stock daily quotes, Eastmoney/Baostock fallback paths, single-flight concurrency control and persistent market panorama caching.
+- Restored local TokenHub/Hunyuan-compatible AI configuration, legacy Wyckoff CLI discovery and GitHub Actions secret wiring; verified a real TokenHub response.
+- Added a clearly labeled three-stock demo portfolio using real historical closes; the first user holding replaces the demo set.
 - Rebuilt the home page as a real market panorama dashboard with four top cards, four-index normalized chart, market breadth structure, portfolio preview, signal/action center and multi-section right rail.
 - Added `/api/market/panorama` and a market panorama service for index normalization, breadth buckets, deterministic regime derivation, provenance and partial-state handling.
 - Restored the original ragdoll cat avatar, warm time-based greeting and assistant entry so the professional workbench keeps the legacy product warmth.

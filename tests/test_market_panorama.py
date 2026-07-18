@@ -67,6 +67,10 @@ class PanoramaRegistry:
                 {"trade_date": "2026-07-01", "close": 100, "source": "baostock"},
                 {"trade_date": "2026-07-02", "close": 101, "source": "baostock"},
             ], [SourceStatus("baostock", "ok", as_of="2026-07-02")])
+        if method == "get_sector_snapshot":
+            return DataResult(True, [
+                {"name": "半导体", "change_pct": 3.2, "source": "akshare:sina-sector"},
+            ], [SourceStatus("akshare:sina-sector", "ok", as_of="2026-07-18")])
         raise AssertionError(method)
 
 
@@ -75,7 +79,7 @@ def test_panorama_keeps_provenance_and_partial_fallback():
     assert data["status"] == "partial"
     assert data["breadth"]["status"] == "partial"
     assert data["breadth"]["up_ratio"] == round(1 / 3, 4)
-    assert {item["source"] for item in data["provenance"]} == {"akshare", "baostock"}
+    assert {"akshare", "baostock", "akshare:sina-sector"} <= {item["source"] for item in data["provenance"]}
     assert data["limitations"]
 
 
@@ -86,3 +90,4 @@ def test_panorama_full_data_shape():
     assert len(data["indices"]) == 4
     assert data["indices"][0]["series"][0]["normalized"] == 100
     assert data["breadth"]["flat_count"] == 1
+    assert data["sectors"][0]["name"] == "半导体"

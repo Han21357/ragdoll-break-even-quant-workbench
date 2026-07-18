@@ -1,0 +1,38 @@
+name: Verify quant workbench
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      TOKENHUB_API_KEY: ${{ secrets.TOKENHUB_API_KEY }}
+      TOKENHUB_BASE_URL: ${{ secrets.TOKENHUB_BASE_URL }}
+      TOKENHUB_MODEL: ${{ secrets.TOKENHUB_MODEL }}
+      HUNYUAN_API_KEY: ${{ secrets.HUNYUAN_API_KEY }}
+      HUNYUAN_BASE_URL: ${{ secrets.HUNYUAN_BASE_URL }}
+      HUNYUAN_MODEL: ${{ secrets.HUNYUAN_MODEL }}
+      LLM_TIMEOUT_SECONDS: "90"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - name: Verify configured AI environment is recognized
+        if: ${{ env.TOKENHUB_API_KEY != '' || env.HUNYUAN_API_KEY != '' }}
+        run: |
+          python wyckoff-server.py > /tmp/ragdoll.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          for attempt in 1 2 3 4 5; do
+            curl --fail --silent http://127.0.0.1:8766/api/status > /tmp/status.json && break
+            sleep 2
+          done
+          python -c 'import json; assert json.load(open("/tmp/status.json"))["llm_configured"] is True'

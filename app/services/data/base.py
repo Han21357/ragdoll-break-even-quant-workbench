@@ -35,3 +35,5 @@ class MarketDataProvider(ABC):
     def get_market_snapshot(self) -> DataResult:
         return DataResult(False, {}, [], f"{self.name} market snapshot unavailable")
 
+    def get_sector_snapshot(self) -> DataResult:
+        return DataResult(False, [], [], f"{self.name} sector snapshot unavailable")

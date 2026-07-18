@@ -50,12 +50,15 @@ pip install -r requirements-optional.txt
 
 正式数据层位于 `app/services/data/`：
 
-1. AKShare作为主数据源。
-2. Baostock作为降级数据源。
+1. AKShare作为主数据源：新浪全市场快照和日线优先，东财接口作为第二路径。
+2. Baostock作为历史行情降级数据源。
 3. 两者通过同一接口返回规范字段：`symbol/trade_date/open/high/low/close/volume/amount/turnover_rate/pct_change/adjustment/source/as_of/status`。
 4. 接口失败会返回来源状态和失败原因，不会被解释为空结果。
+5. 全市场快照采用单次并发锁、内存缓存和12小时本地成功快照，避免多标签重复抓取。
 
 行情和大规模因子数据使用本地缓存目录；策略、版本、回测、组合、血缘和复盘记录使用SQLite，默认在 `.ragdoll_data/ragdoll.sqlite3`。
+
+空环境会展示贵州茅台、宁德时代和中国平安三只明确标记的示例持仓，成本取自 `2026-06-26` 真实收盘价；首次录入真实持仓时会替换示例组合。
 
 ## 回测限制
 
@@ -96,4 +99,3 @@ POST /api/reviews
 ```
 
 旧接口仍保留兼容层，其中 `/api/backtest/run` 会返回 `deprecated: true`，内部使用新版回测引擎。
-
