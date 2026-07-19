@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ragdoll-quant-workbench
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 wsgi:app
+    autoDeployTrigger: commit
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: TOKENHUB_API_KEY
+        sync: false
+      - key: TOKENHUB_BASE_URL
+        sync: false
+      - key: TOKENHUB_MODEL
+        sync: false
+      - key: LLM_TIMEOUT_SECONDS
+        value: "90"
+      - key: RAGDOLL_DATA_DIR
+        value: /tmp/ragdoll_data
+      - key: RAGDOLL_CACHE_DIR
+        value: /tmp/ragdoll_data/cache
+      - key: RAGDOLL_DB_PATH
+        value: /tmp/ragdoll_data/ragdoll.sqlite3
