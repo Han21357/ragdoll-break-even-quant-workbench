@@ -75,7 +75,6 @@ _cache_lock = threading.Lock()
 CACHE_TTL = {"market": 180, "market_fast": 15, "screen_full": 300, "screen_events": 180,
              "stock_catalog": 86400}
 _market_refreshing = False
-threading.Thread(target=warm_stock_catalog, daemon=True).start()
 
 def _cache_get(key):
     entry = _cache.get(key)
@@ -1930,6 +1929,7 @@ if __name__ == "__main__":
     # 启动后预热市场数据（不阻塞服务启动）
     def _warmup():
         time.sleep(2)
+        warm_stock_catalog()
         _kick_market_refresh()
     threading.Thread(target=_warmup, daemon=True).start()
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

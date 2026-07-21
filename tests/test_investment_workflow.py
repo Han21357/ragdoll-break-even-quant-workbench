@@ -11,6 +11,7 @@ def _client(monkeypatch, tmp_path):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "workflow.sqlite3")
     monkeypatch.setattr(database, "DATA_DIR", tmp_path)
     monkeypatch.setattr(database, "migrate_legacy_json", lambda: None)
+    monkeypatch.setattr("app.api.investment_workflow.enrich_stock_rows", lambda rows: rows)
     database.init_db()
     app = Flask(__name__)
     app.register_blueprint(bp)
