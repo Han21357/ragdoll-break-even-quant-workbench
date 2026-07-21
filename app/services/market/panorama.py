@@ -3,16 +3,19 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import date, timedelta
-from statistics import median
+from datetime import date, datetime, timedelta
+from math import sqrt
+from statistics import median, pstdev
 from typing import Any
 
 from app.services.data.models import DataResult, SourceStatus
-from app.services.data.registry import registry as default_registry
+from app.services.data.service import data_provider as default_registry
 from config import CACHE_DIR
 
 PANORAMA_CACHE_FILE = CACHE_DIR / "market_panorama.json"
 PANORAMA_DISK_TTL = 12 * 3600
+PANORAMA_SCHEMA_VERSION = 3
+SECTOR_HISTORY_FILE = CACHE_DIR / "sector_history.json"
 
 INDEX_SPECS = [
     {"id": "sh", "symbol": "sh000001", "name": "上证指数"},
@@ -60,7 +63,7 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
     for spec in INDEX_SPECS:
         result = registry.call("get_index_daily", spec["symbol"], start, end, "none")
         provenance.extend(_as_dicts(result.provenance))
-        if result.ok:
+        if result.ok and _valid_index_rows(result.data):
             indices.append(build_index_item(spec, result.data, window))
         else:
             indices.append({
@@ -76,7 +79,7 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
     sector_result = registry.call("get_sector_snapshot")
     provenance.extend(_as_dicts(sector_result.provenance))
     if sector_result.ok and isinstance(sector_result.data, list):
-        sectors = sector_result.data[:8]
+        sectors = enrich_sector_persistence(sector_result.data)[:8]
     else:
         limitations.append("行业板块快照不可用。")
 
@@ -89,19 +92,31 @@ def build_market_panorama(registry=default_registry, window: int = 40) -> dict[s
     regime = build_regime(breadth)
     result = {
         "ok": status != "error",
+        "schema_version": PANORAMA_SCHEMA_VERSION,
         "status": status,
         "as_of": max(as_of_values) if as_of_values else (breadth or {}).get("as_of"),
         "refreshing": False,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
         "indices": indices,
         "breadth": breadth or empty_breadth("unavailable"),
         "regime": regime,
         "sectors": sectors,
         "provenance": provenance,
         "limitations": limitations,
+        "missing_fields": _market_missing_fields(breadth, indices, sectors),
+        "completeness": _market_completeness(breadth, indices, sectors),
     }
     if registry is default_registry and result["ok"]:
         _save_cached_panorama(result)
     return result
+
+
+def _valid_index_rows(rows: Any) -> bool:
+    """Reject a stock series accidentally returned for an ambiguous index code."""
+    if not isinstance(rows, list) or not rows:
+        return False
+    closes = [row.get("close") for row in rows if isinstance(row, dict) and row.get("close") is not None]
+    return bool(closes) and float(closes[-1]) >= 100
 
 
 def _load_cached_panorama() -> dict[str, Any] | None:
@@ -110,7 +125,7 @@ def _load_cached_panorama() -> dict[str, Any] | None:
             return None
         payload = json.loads(PANORAMA_CACHE_FILE.read_text())
         data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
-        if not data.get("ok"):
+        if not data.get("ok") or data.get("schema_version") != PANORAMA_SCHEMA_VERSION:
             return None
         data = dict(data)
         data["cache"] = {"status": "local", "saved_at": payload.get("saved_at")}
@@ -185,23 +200,25 @@ def partial_breadth(data: dict[str, Any]) -> dict[str, Any]:
 def empty_breadth(status: str) -> dict[str, Any]:
     return {
         "status": status,
-        "total": 0,
-        "up_count": 0,
-        "down_count": 0,
-        "flat_count": 0,
+        "total": None,
+        "up_count": None,
+        "down_count": None,
+        "flat_count": None,
         "up_ratio": None,
         "median_change": None,
         "amount": None,
-        "buckets": [{"label": label, "count": 0} for label, _ in BUCKETS],
+        "buckets": [{"label": label, "count": None} for label, _ in BUCKETS],
         "as_of": None,
     }
 
 
 def build_index_item(spec: dict[str, str], rows: list[dict[str, Any]], window: int) -> dict[str, Any]:
-    series = normalize_index_series(rows, window)
-    if not series:
+    history = normalize_index_series(rows, max(window, 80))
+    if not history:
         return {**spec, "status": "empty", "source": None, "as_of": None, "series": []}
-    latest = series[-1]
+    latest = history[-1]
+    returns = [item.get("pct_change") for item in history if item.get("pct_change") is not None]
+    series = history[-window:]
     return {
         **spec,
         "status": "ok",
@@ -211,6 +228,8 @@ def build_index_item(spec: dict[str, str], rows: list[dict[str, Any]], window: i
         "as_of": latest["date"],
         "source": latest.get("source"),
         "series": series,
+        "volatility_20d": _annualized_volatility(returns[-20:]),
+        "volatility_60d": _annualized_volatility(returns[-60:]),
     }
 
 
@@ -277,3 +296,70 @@ def _number(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _annualized_volatility(values: list[float]) -> float | None:
+    if len(values) < 10:
+        return None
+    return round(pstdev([value / 100 for value in values]) * sqrt(252) * 100, 4)
+
+
+def enrich_sector_persistence(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Persist one snapshot per date and calculate consecutive direction days."""
+    today = max((str(row.get("as_of")) for row in rows if row.get("as_of")), default=date.today().isoformat())
+    history = {}
+    try:
+        history = json.loads(SECTOR_HISTORY_FILE.read_text())
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    history[today] = {row.get("name"): _number(row.get("change_pct")) for row in rows if row.get("name")}
+    history = dict(sorted(history.items())[-60:])
+    try:
+        SECTOR_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp = SECTOR_HISTORY_FILE.with_suffix(".tmp")
+        temp.write_text(json.dumps(history, ensure_ascii=False))
+        temp.replace(SECTOR_HISTORY_FILE)
+    except OSError:
+        pass
+    dates = sorted(history, reverse=True)
+    enriched = []
+    for raw in rows:
+        item = dict(raw)
+        current = _number(item.get("change_pct"))
+        streak = 0
+        if current is not None and current != 0:
+            direction = 1 if current > 0 else -1
+            for day in dates:
+                value = _number(history[day].get(item.get("name")))
+                if value is None or value == 0 or (1 if value > 0 else -1) != direction:
+                    break
+                streak += 1
+        item["rotation_persistence_days"] = streak or None
+        item["rotation_history_days"] = len(dates)
+        enriched.append(item)
+    return enriched
+
+
+def _market_missing_fields(breadth, indices, sectors):
+    missing = {}
+    if not breadth or breadth.get("up_count") is None:
+        missing["breadth"] = "AKShare 与 efinance 全市场快照均未返回有效涨跌数据"
+    if not breadth or breadth.get("median_change") is None:
+        missing["median_change"] = "主备快照未提供可计算的全A涨跌幅序列"
+    if not breadth or breadth.get("amount") is None:
+        missing["amount"] = "主备快照未提供可汇总成交额"
+    if not any(item.get("volatility_20d") is not None for item in indices):
+        missing["volatility_20d"] = "指数有效收益率样本不足10个交易日"
+    if not any(item.get("volatility_60d") is not None for item in indices):
+        missing["volatility_60d"] = "当前指数窗口不足60个交易日"
+    if not sectors:
+        missing["sectors"] = "AKShare 与东财行业板块接口均不可用"
+    elif max((item.get("rotation_history_days") or 0 for item in sectors), default=0) < 2:
+        missing["rotation_persistence"] = "本地板块日快照不足2日；将随每日增量更新自动形成"
+    return missing
+
+
+def _market_completeness(breadth, indices, sectors):
+    expected = 8
+    missing = _market_missing_fields(breadth, indices, sectors)
+    return round((expected - len(missing)) / expected, 4)

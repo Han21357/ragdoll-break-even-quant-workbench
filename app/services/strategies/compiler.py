@@ -1,6 +1,7 @@
 """Natural-language strategy compiler with explicit assumptions."""
 from __future__ import annotations
 
+import re
 import time
 
 from app.schemas.strategy import Condition, ConditionGroup, StrategyDSL
@@ -13,6 +14,11 @@ def compile_strategy_from_text(text: str) -> dict:
     semantic = []
     conditions = []
     ambiguities = []
+    max_positions = _extract_int(original, r"(?:最多(?:持有)?|最大持仓|持有不超过)\s*(\d+)\s*只", 10)
+    holding_days = _extract_int(original, r"(?:持有|持仓周期)\s*(\d+)\s*(?:天|日)", 20)
+    stop_loss = _extract_percent(original, r"(?:止损|回撤)\s*-?\s*(\d+(?:\.\d+)?)\s*%", 0.08)
+    take_profit = _extract_percent(original, r"(?:止盈|盈利)\s*\+?\s*(\d+(?:\.\d+)?)\s*%", 0.20)
+    rebalance = "monthly" if "月度调仓" in original or "每月" in original else "daily" if "每日调仓" in original else "weekly"
 
     if "低于100" in original or "低于 100" in original or "100元" in original:
         semantic.append({"text": "价格低于100元", "definition": "close < 100"})
@@ -53,6 +59,9 @@ def compile_strategy_from_text(text: str) -> dict:
         name="自然语言策略草案",
         description=original,
         entry_conditions=ConditionGroup(logic="AND", conditions=conditions),
+        portfolio={"max_positions": max_positions, "single_position_limit": min(0.2, 1 / max(max_positions, 1))},
+        execution={"rebalance_frequency": rebalance, "holding_days": holding_days},
+        risk={"stop_loss": stop_loss, "take_profit": take_profit},
         metadata={
             "original_text": original,
             "compiler": "rule_based_pydantic_v1",
@@ -64,6 +73,18 @@ def compile_strategy_from_text(text: str) -> dict:
         "semantic_breakdown": semantic,
         "dsl": dsl.model_dump(),
         "ambiguities": ambiguities,
-        "assumptions": ["未让 LLM 生成任意 Python；所有条件必须通过因子注册表和 Pydantic 校验。"],
+        "assumptions": [
+            "未让 LLM 生成任意 Python；所有条件必须通过因子注册表和 Pydantic 校验。",
+            "未明确说明时，默认每周调仓、持有20日、止损8%、止盈20%、最多10只；确认页允许逐项修改。",
+        ],
     }
 
+
+def _extract_int(text: str, pattern: str, default: int) -> int:
+    match = re.search(pattern, text)
+    return int(match.group(1)) if match else default
+
+
+def _extract_percent(text: str, pattern: str, default: float) -> float:
+    match = re.search(pattern, text)
+    return float(match.group(1)) / 100 if match else default

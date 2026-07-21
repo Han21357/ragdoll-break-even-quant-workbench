@@ -4,9 +4,13 @@ flask-cors==6.0.1
 python-dotenv==1.1.1
 requests==2.32.4
 pandas==2.3.1
+openpyxl==3.1.5
+pypinyin==0.54.0
 pydantic==2.11.7
 baostock==0.8.9
 akshare==1.18.64
+efinance==0.5.9
+mootdx==0.11.7
 akquant==0.1.3
 SQLAlchemy==2.0.41
 pytest==8.4.1
@@ -14,4 +18,3 @@ pytest==8.4.1
 # 自研 Agent 链路保留为可运行能力
 langgraph==1.2.0
 langchain-core==1.4.0
-

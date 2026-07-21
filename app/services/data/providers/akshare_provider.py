@@ -241,6 +241,22 @@ class AKShareProvider(MarketDataProvider):
         except Exception as exc:
             return DataResult(False, [], [self._status("unavailable", str(exc), source=source)], str(exc))
 
+    def get_industry_members(self, industry: str) -> DataResult:
+        source = "akshare:eastmoney-industry-members"
+        try:
+            df = self._ak().stock_board_industry_cons_em(symbol=industry)
+            today = datetime.now().date().isoformat()
+            rows = []
+            for _, row in df.iterrows():
+                symbol = _plain_symbol(row.get("代码"))
+                if symbol.isdigit() and len(symbol) == 6:
+                    rows.append({"symbol": symbol, "name": row.get("名称"), "industry": industry, "source": source, "as_of": today, "status": "ok"})
+            if not rows:
+                raise ValueError("industry member endpoint returned no stocks")
+            return DataResult(True, rows, [self._status("ok", as_of=today, source=source)], data_date=today)
+        except Exception as exc:
+            return DataResult(False, [], [self._status("unavailable", str(exc), source=source)], str(exc))
+
 
 def _num(value: Any):
     try:

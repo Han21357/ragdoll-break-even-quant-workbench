@@ -1,101 +1,118 @@
-# 老布偶猫回本之路
+# 老布偶猫量化工作台
 
-AI量化研究与投资决策工作台。
+> 一款有温度、可追溯、以真实数据驱动的个人投资研究与复盘工作台。
 
-> 把你的投资想法，变成一套能验证、能跟踪、能复盘的量化策略。
+[项目介绍 PDF](output/pdf/ragdoll-quant-workbench-introduction.pdf) · [数据缺失审计](docs/DATA_GAP_AUDIT.md) · [交互审计](INTERACTION_AUDIT.md) · [数据来源说明](docs/DATA_PROVENANCE.md)
 
-## 定位
+![老布偶猫量化工作台总览](docs/assets/dashboard-overview.png)
 
-本项目面向个人投资者。产品通过自然语言和可视化交互，把投资想法转换为透明、可计算、可回测、可跟踪的策略，并持续监控策略在真实持仓中的有效性、风险和执行偏差。
+## 项目简介
 
-核心链路：
+老布偶猫量化工作台将市场观察、策略研究、模拟组合、真实持仓、AI 投委会与到期复盘放进一条可执行的个人投资工作流。产品不追求给出一句“买或卖”的黑箱答案，而是保存每次判断的证据、日期、数据来源、缺失项和失效条件，让用户能够在未来还原“当时为什么这样判断”。
 
 ```text
-发现市场机会 -> 表达投资想法 -> AI拆解量化定义 -> 用户检查规则
--> 数据可用性检查 -> 股票筛选 -> 历史回测 -> 策略体检
--> 保存策略版本 -> 观察池/模拟组合 -> 持仓策略血缘 -> 复盘偏差
+市场/板块 -> 观察池 -> 策略 DSL -> 股票筛选 -> 模拟组合
+-> 真实持仓 -> 投资委员会 -> 用户确认决策 -> 到期复盘 -> 策略新版本
 ```
 
-产品不连接券商、不自动下单、不承诺收益。AI只做结构化解释和审计，事实必须来自数据接口或明确标记缺口。
+## 核心亮点
 
-## 功能架构
+- **真实数据优先**：AKShare 为主源，efinance、Mootdx、BaoStock、腾讯行情等作为备源；Tushare 仅为可选增强。
+- **明确的数据降级**：请求支持超时重试、主备切换、本地缓存、增量快照和字段标准化；缺失值显示原因，不使用 `0` 冒充。
+- **可解释策略工作流**：自然语言投资想法会转换为可编辑、可校验、可版本化的策略 DSL，再进入筛选和回测。
+- **真实持仓导入**：支持手工搜索、粘贴券商表格、CSV/XLSX 和模拟组合转入；自动识别字段并处理重复持仓冲突。
+- **模糊股票搜索**：预载 A 股基础目录，支持代码片段、中文名、拼音和首字母；选择后自动回填代码、名称和市场。
+- **多角色投资委员会**：基本面、估值、行业、趋势、风险与反方角色独立取证，由主席保留分歧后汇总。
+- **证据化决策与复盘**：AI 不能自动交易；用户确认后才保存决策，并可在到期复盘后生成策略修订版本。
+- **有温度的金融体验**：老布偶猫会根据时间、市场状态、持仓和复盘任务切换状态，同时保留专业的数据密度。
 
-- 工作台：市场状态、策略信号、持仓偏离、回测任务。
-- 市场雷达：市场宽度、成交额、涨跌家数、确定性市场环境派生。
-- 策略实验室：自然语言策略生成、语义拆解、Pydantic DSL、数据校验、筛选漏斗。
-- 因子研究：基础因子注册表，P1预留Alphalens Reloaded分析。
-- 回测中心：A股成本、整手、T+1、滑点、权益曲线、交易记录、策略体检。
-- 组合中心：观察池、模拟组合、真实持仓血缘接口。
-- AI研究员：策略编译、数据审计、回测诊断、组合风险解释。
-- 复盘：模型信号与用户操作对照，保留旧决策复盘兼容接口。
+## 产品界面
 
-## 安装
+### 市场总览
+
+首页同时呈现市场宽度、成交额、指数表现、20/60 日波动率、持仓状态和今日行动。波动率按风险指标表达，不使用收益式颜色和正号。
+
+### 持仓导入
+
+![真实持仓模糊搜索与导入](docs/assets/holdings-import.png)
+
+导入过程分为解析、映射、校验、预览和确认五步。持仓写入与交易流水处于同一 SQLite 事务中，避免“页面显示成功但流水缺失”。
+
+## 系统架构
+
+```mermaid
+flowchart LR
+    UI[Flask + 原生 Web UI] --> API[Workflow API]
+    API --> DP[Unified DataProvider]
+    DP --> AK[AKShare / AKTools]
+    DP --> EF[efinance]
+    DP --> MT[Mootdx / BaoStock]
+    DP --> TX[Tencent / a-stock-data]
+    API --> DB[(SQLite)]
+    DB --> OBJ[策略 / 持仓 / 流水 / 决策 / 复盘 / AgentTask]
+    API --> IC[老布偶猫投资委员会]
+    IC --> EV[Evidence Snapshot]
+    EV --> DB
+```
+
+### 数据请求契约
+
+每个统一数据请求返回：
+
+```text
+data + data_date + source + updated_at + completeness
++ cache_status + missing_fields + error + provenance
+```
+
+数据源全部失败时，系统可返回明确标记为 `stale` 的最近成功快照；无法可靠计算的仓位、Beta、风格暴露等字段会显示具体缺失原因。
+
+## 快速开始
 
 ```bash
+git clone https://github.com/Han21357/ragdoll-break-even-quant-workbench.git
+cd ragdoll-break-even-quant-workbench
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-bash start-server.sh
-open http://localhost:8766
+./start-server.sh
 ```
 
-P1/P2能力可选安装：
+打开 [http://localhost:8766](http://localhost:8766)。Tushare、AKTools 和 LLM 密钥均为可选配置，未配置时不影响项目启动。
+
+## 验证
 
 ```bash
-pip install -r requirements-optional.txt
+python3 -m pytest -q
+node --check app/static/js/app.js
+node --check app/static/js/api.js
+git diff --check
 ```
 
-## 数据来源
+当前验证结果：`31 passed, 4 skipped`。跳过项属于需要可选外部能力或网络条件的测试。
 
-正式数据层位于 `app/services/data/`：
+项目介绍 PDF 可重复生成：
 
-1. AKShare作为主数据源：新浪全市场快照和日线优先，东财接口作为第二路径。
-2. Baostock作为历史行情降级数据源。
-3. 两者通过同一接口返回规范字段：`symbol/trade_date/open/high/low/close/volume/amount/turnover_rate/pct_change/adjustment/source/as_of/status`。
-4. 接口失败会返回来源状态和失败原因，不会被解释为空结果。
-5. 全市场快照采用单次并发锁、内存缓存和12小时本地成功快照，避免多标签重复抓取。
-
-行情和大规模因子数据使用本地缓存目录；策略、版本、回测、组合、血缘和复盘记录使用SQLite，默认在 `.ragdoll_data/ragdoll.sqlite3`。
-
-空环境会展示贵州茅台、宁德时代和中国平安三只明确标记的示例持仓，成本取自 `2026-06-26` 真实收盘价；首次录入真实持仓时会替换示例组合。
-
-## 回测限制
-
-当前回测入口已经计算手续费、最低佣金、卖出印花税、过户费、滑点、整手约束和T+1。当前限制会在API和页面展示：
-
-- 未处理分红送转。
-- 未完整处理停牌期间订单排队。
-- 未处理涨跌停无法成交。
-- 未处理退市和ST全历史变更。
-- 当前股票池若来自当日股票列表，可能存在幸存者偏差。
-- AKQuant包已固定依赖并隔离在适配器后；当前仍使用项目稳定结构输出。
-
-## 产品边界
-
-- 不自动交易，不连接真实券商账户。
-- 不生成随机收益、随机股票或未标注模拟数据。
-- 数据不可用时失败并显示原因。
-- AI不得编造行情、指标、财务、新闻或机构观点。
-- VectorBT未加入正式依赖。
-
-## 主要API
-
-```text
-GET  /api/data/status
-GET  /api/market/overview
-GET  /api/market/regime
-GET  /api/factors
-POST /api/strategies/compile
-POST /api/strategies/validate
-GET  /api/strategies
-POST /api/strategies
-POST /api/strategies/<id>/screen
-POST /api/backtests
-GET  /api/backtests/<task_id>/result
-GET  /api/backtests/<task_id>/diagnostics
-GET  /api/portfolios
-POST /api/reviews
+```bash
+pip install -r requirements-docs.txt
+python scripts/build_project_pdf.py
 ```
 
-旧接口仍保留兼容层，其中 `/api/backtest/run` 会返回 `deprecated: true`，内部使用新版回测引擎。
+## 技术栈
+
+- Python、Flask、SQLite、Pydantic
+- 原生 JavaScript、CSS、Lightweight Charts
+- AKShare、AKTools、efinance、Mootdx、BaoStock
+- ReportLab、pytest
+
+## 项目边界
+
+- 不连接券商账户，不自动下单。
+- 不生成随机收益、随机股票或未标注的模拟数据。
+- AI 输出是基于有限公开数据和用户记录的研究意见，不构成收益承诺。
+- 用户成本、持仓和投资理由仅保存在本地 SQLite，`.env` 与本地数据目录不会提交到 Git。
+
+## English Summary
+
+**Old Ragdoll Cat Quant Workbench** is an evidence-first personal investment research and review workspace for China A-shares. It combines resilient market-data adapters, explainable strategy DSLs, real-position imports, a role-based AI investment committee, decision snapshots, and due-date reviews. The system never trades automatically and never replaces missing data with fabricated values.

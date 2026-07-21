@@ -4,25 +4,33 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
 from app.repositories.database import (
     get_backtest,
+    get_evidence_snapshot,
     get_strategy,
     init_db,
     insert_review,
+    insert_decision,
+    list_decisions,
     list_portfolios,
+    list_reviews,
     list_strategies,
+    list_watchlist,
+    save_evidence_snapshot,
     save_strategy_version,
     upsert_backtest,
     upsert_portfolio,
     upsert_strategy,
+    upsert_watchlist,
+    update_decision_result,
 )
 from app.schemas.strategy import StrategyDSL
 from app.services.backtest.engine import run_backtest
-from app.services.data.registry import registry
+from app.services.data.service import data_provider
 from app.services.factors.registry import get_factor, list_factors
 from app.services.market import build_market_panorama
 from app.services.strategies.compiler import compile_strategy_from_text
@@ -37,6 +45,8 @@ _TASK_TTL_SECONDS = 3600
 def register_quant_workbench(app):
     init_db()
     app.register_blueprint(bp)
+    from app.api.investment_workflow import bp as investment_workflow_bp
+    app.register_blueprint(investment_workflow_bp)
 
 
 def _clean_tasks():
@@ -48,8 +58,24 @@ def _clean_tasks():
 
 @bp.get("/data/status")
 def data_status():
-    status = registry.status()
+    status = data_provider.status()
     return jsonify({**status, "generated_at": datetime.now().isoformat(timespec="seconds")})
+
+
+@bp.get("/data/coverage")
+def data_coverage():
+    return jsonify({
+        "policy": "缺失值使用 null，并返回 missing_fields 中的具体原因；不使用0冒充数据。",
+        "provider_order": [provider.name for provider in data_provider.registry.providers],
+        "cache": {"memory": "进程内TTL", "persistent": "本地原子JSON", "stale_fallback": True, "incremental_snapshots": ["板块轮动"]},
+        "fields": {
+            "market": ["breadth", "median_change", "amount", "index_history", "volatility_20d", "volatility_60d", "sectors", "rotation_persistence"],
+            "portfolio": ["adjusted_price", "today_return", "cumulative_return", "max_drawdown", "volatility", "position", "industry_concentration", "single_exposure", "equity_curve"],
+            "strategy": ["universe", "daily", "valuation", "financials", "fund_flow", "sector", "research_reports"],
+            "research": ["evidence_value", "data_date", "source", "missing_reason", "news", "announcements"],
+            "review": ["decision", "evidence_snapshot", "due_price", "holding_result"],
+        },
+    })
 
 
 @bp.get("/market/overview")
@@ -287,12 +313,84 @@ def portfolios_list():
     return jsonify({"portfolios": list_portfolios()})
 
 
+@bp.get("/watchlist")
+def watchlist_list():
+    return jsonify({"items": list_watchlist()})
+
+
+@bp.post("/watchlist")
+def watchlist_create():
+    payload = request.get_json() or {}
+    symbol = str(payload.get("symbol") or "").strip()
+    if not symbol:
+        return jsonify({"ok": False, "error": "加入观察池需要明确股票代码；板块本身不能伪装成股票。"}), 400
+    evidence = payload.get("evidence") or {}
+    saved = upsert_watchlist(symbol, payload.get("name"), payload.get("source_context") or "manual", evidence)
+    return jsonify({"ok": True, "item": saved})
+
+
+@bp.post("/watchlist/to-strategy")
+def watchlist_to_strategy():
+    payload = request.get_json() or {}
+    items = list_watchlist()
+    symbols = payload.get("symbols") or [item["symbol"] for item in items if str(item["symbol"]).isdigit()]
+    for item in items:
+        if not str(item["symbol"]).startswith("sector:"):
+            continue
+        industry = item.get("name") or str(item["symbol"]).split(":", 1)[-1]
+        members = data_provider.request("get_industry_members", industry)
+        if members.ok:
+            symbols.extend(row["symbol"] for row in members.data)
+    symbols = list(dict.fromkeys(symbols))
+    if not symbols:
+        return jsonify({"ok": False, "error": "观察池为空，无法生成带真实股票池的策略。"}), 400
+    text = payload.get("idea") or f"在股票池 {','.join(symbols)} 中，每周调仓，最多持有5只"
+    compiled = compile_strategy_from_text(text)
+    compiled["dsl"]["universe"] = {**(compiled["dsl"].get("universe") or {}), "type": "symbols", "symbols": symbols}
+    return jsonify({"ok": True, **compiled, "evidence": {"watchlist_symbols": symbols, "generated_at": datetime.now().isoformat(timespec="seconds")}})
+
+
+@bp.get("/research/<symbol>")
+def stock_research(symbol):
+    requests_spec = [
+        ("profile", "get_stock_profile", {"required_fields": ["industry", "market_cap", "pe_ttm", "pb"]}),
+        ("fund_flow", "get_fund_flow", {}),
+        ("reports", "get_research_reports", {}),
+        ("news", "get_stock_news", {}),
+        ("announcements", "get_announcements", {}),
+    ]
+    sections = {}
+    missing = {}
+    evidence = []
+    for key, method, options in requests_spec:
+        result = data_provider.request(method, symbol, **options)
+        sections[key] = result.data if result.ok else ([] if key != "profile" else {})
+        evidence.append({"field": key, **result.meta()})
+        if not result.ok:
+            missing[key] = result.error or "主备数据源均未返回数据"
+        missing.update({f"{key}.{field}": reason for field, reason in result.missing_fields.items()})
+    return jsonify({"ok": any(bool(value) for value in sections.values()), "symbol": symbol, "sections": sections, "evidence": evidence, "missing_fields": missing, "generated_at": datetime.now().isoformat(timespec="seconds")})
+
+
 @bp.post("/portfolios")
 def portfolio_create():
     payload = request.get_json() or {}
     portfolio_id = payload.get("id") or f"portfolio_{uuid.uuid4().hex[:8]}"
     saved = upsert_portfolio(portfolio_id, payload.get("name", "模拟组合"), payload.get("kind", "paper"), payload)
     return jsonify({"ok": True, "portfolio": saved})
+
+
+@bp.post("/portfolios/from-screen")
+def portfolio_from_screen():
+    payload = request.get_json() or {}
+    selected = payload.get("selected") or []
+    if not selected:
+        return jsonify({"ok": False, "error": "筛选结果为空，不能创建模拟组合。"}), 400
+    portfolio_id = payload.get("id") or f"paper_{uuid.uuid4().hex[:8]}"
+    evidence = {"strategy_id": payload.get("strategy_id"), "strategy_version": payload.get("strategy_version"), "screened_at": payload.get("screened_at") or datetime.now().isoformat(timespec="seconds"), "selected": selected, "source_status": payload.get("source_status") or {}}
+    snapshot = save_evidence_snapshot("screening", portfolio_id, evidence)
+    saved = upsert_portfolio(portfolio_id, payload.get("name", "筛选模拟组合"), "paper", {"holdings": selected, "evidence_snapshot_id": snapshot["id"]})
+    return jsonify({"ok": True, "portfolio": saved, "evidence_snapshot": snapshot})
 
 
 @bp.post("/portfolios/<portfolio_id>/optimize")
@@ -346,7 +444,8 @@ def ai_portfolio_explain():
 
 @bp.get("/reviews")
 def reviews_list():
-    return jsonify({"reviews": [], "message": "旧复盘数据已迁移到SQLite，详细记录仍通过 /api/effect/* 兼容接口查看。"})
+    decisions = _resolve_due_decisions(list_decisions())
+    return jsonify({"reviews": list_reviews(), "decisions": decisions, "message": "仅返回SQLite中的真实决策与复盘记录；无记录时不生成总结。"})
 
 
 @bp.post("/reviews")
@@ -354,3 +453,52 @@ def review_create():
     payload = request.get_json() or {}
     review = insert_review(payload)
     return jsonify({"ok": True, "review": review})
+
+
+@bp.post("/decisions")
+def decision_create():
+    payload = request.get_json() or {}
+    if not payload.get("thesis") or not payload.get("action"):
+        return jsonify({"ok": False, "error": "记录决策需要明确行动和当时的判断理由。"}), 400
+    evidence = dict(payload.get("evidence") or {})
+    symbol = payload.get("symbol")
+    if symbol:
+        start = (date.today() - timedelta(days=45)).isoformat()
+        quote = data_provider.request("get_stock_daily", symbol, start, date.today().isoformat(), "qfq", required_fields=["trade_date", "close"])
+        if quote.ok and quote.data:
+            latest = quote.data[-1]
+            evidence["decision_quote"] = {"symbol": symbol, "close": latest.get("close"), "date": latest.get("trade_date"), "source": latest.get("source"), "adjustment": latest.get("adjustment")}
+        else:
+            evidence["decision_quote_missing"] = quote.error or "主备行情源均未返回决策日价格"
+    snapshot = save_evidence_snapshot("decision", payload.get("symbol") or payload.get("portfolio_id") or "market", evidence)
+    decision = insert_decision(payload, snapshot["id"])
+    return jsonify({"ok": True, "decision": decision, "evidence_snapshot": snapshot})
+
+
+def _resolve_due_decisions(decisions: list[dict]) -> list[dict]:
+    today = date.today().isoformat()
+    for decision in decisions:
+        if decision.get("result") or not decision.get("due_at") or decision["due_at"] > today:
+            continue
+        if not decision.get("symbol"):
+            decision["result_missing_reason"] = "决策没有明确股票代码，无法计算标的到期收益"
+            continue
+        snapshot = get_evidence_snapshot(decision["evidence_snapshot_id"])
+        baseline = (snapshot or {}).get("payload", {}).get("decision_quote") or {}
+        if baseline.get("close") is None or not baseline.get("date"):
+            decision["result_missing_reason"] = (snapshot or {}).get("payload", {}).get("decision_quote_missing") or "证据快照缺少决策日复权价格"
+            continue
+        result = data_provider.request("get_stock_daily", decision["symbol"], baseline["date"], today, "qfq", required_fields=["trade_date", "close"])
+        if not result.ok or not result.data:
+            decision["result_missing_reason"] = result.error or "主备行情源均未返回到期价格"
+            continue
+        latest = result.data[-1]
+        realized = {
+            "status": "checked", "baseline_date": baseline["date"], "baseline_close": baseline["close"],
+            "result_date": latest.get("trade_date"), "result_close": latest.get("close"),
+            "return_pct": round((float(latest["close"]) / float(baseline["close"]) - 1) * 100, 4),
+            "source": latest.get("source"), "adjustment": latest.get("adjustment"),
+        }
+        update_decision_result(decision["id"], realized)
+        decision["result"] = realized
+    return decisions

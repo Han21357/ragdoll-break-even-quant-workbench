@@ -42,3 +42,12 @@ def test_compiler_marks_unavailable_institutional_attention_disabled():
     assert conditions[0]["enabled"] is False
     assert result["ambiguities"][0]["data_status"] == "unavailable"
 
+
+def test_compiler_builds_editable_portfolio_and_risk_rules():
+    result = compile_strategy_from_text("价格低于100元，最多持有5只，持有15日，止损6%，止盈18%，每月调仓")
+    dsl = result["dsl"]
+    assert dsl["portfolio"]["max_positions"] == 5
+    assert dsl["execution"]["holding_days"] == 15
+    assert dsl["execution"]["rebalance_frequency"] == "monthly"
+    assert dsl["risk"]["stop_loss"] == pytest.approx(0.06)
+    assert dsl["risk"]["take_profit"] == pytest.approx(0.18)

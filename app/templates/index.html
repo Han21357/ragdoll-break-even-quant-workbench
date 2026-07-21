@@ -12,39 +12,7 @@
 <body>
   <aside class="sidebar">
     <section class="brand-card">
-      <div class="mascot mascot-svg" aria-label="老布偶猫">
-        <svg viewBox="0 0 100 100" aria-hidden="true">
-          <ellipse cx="50" cy="54" rx="36" ry="34" fill="#FFF8F0"/>
-          <ellipse cx="50" cy="56" rx="33" ry="31" fill="#FFFAF5"/>
-          <path d="M18 32 Q14 10 28 20 Q24 30 22 36Z" fill="#FFF8F0" stroke="#E5DDD4" stroke-width="1.5"/>
-          <path d="M82 32 Q86 10 72 20 Q76 30 78 36Z" fill="#FFF8F0" stroke="#E5DDD4" stroke-width="1.5"/>
-          <path d="M21 29 Q19 18 27 23Q24 28 23 33Z" fill="#FDE8E8"/>
-          <path d="M79 29 Q81 18 73 23Q76 28 77 33Z" fill="#FDE8E8"/>
-          <circle cx="37" cy="50" r="13" fill="none" stroke="#4A3F35" stroke-width="2.8"/>
-          <circle cx="63" cy="50" r="13" fill="none" stroke="#4A3F35" stroke-width="2.8"/>
-          <line x1="50" y1="50" x2="50" y2="50" stroke="#4A3F35" stroke-width="2.8"/>
-          <line x1="24" y1="48" x2="18" y2="44" stroke="#4A3F35" stroke-width="2.2" stroke-linecap="round"/>
-          <line x1="76" y1="48" x2="82" y2="44" stroke="#4A3F35" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="37" cy="51" r="4.5" fill="#4A3F35"/>
-          <circle cx="63" cy="51" r="4.5" fill="#4A3F35"/>
-          <circle cx="38.5" cy="49.5" r="1.5" fill="#fff"/>
-          <circle cx="64.5" cy="49.5" r="1.5" fill="#fff"/>
-          <ellipse cx="50" cy="59" rx="3" ry="2.2" fill="#E8C4B0"/>
-          <path d="M44 64 Q50 70 56 64" fill="none" stroke="#C4A898" stroke-width="1.8" stroke-linecap="round"/>
-          <ellipse cx="28" cy="58" rx="6" ry="3.5" fill="#FDE8E8" opacity="0.65"/>
-          <ellipse cx="72" cy="58" rx="6" ry="3.5" fill="#FDE8E8" opacity="0.65"/>
-          <line x1="16" y1="56" x2="28" y2="58" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
-          <line x1="16" y1="60" x2="28" y2="60" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
-          <line x1="72" y1="58" x2="84" y2="56" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
-          <line x1="72" y1="60" x2="84" y2="60" stroke="#D4BCAE" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
-          <path d="M38 86 L42 96 L50 91 L58 96 L62 86 Z" fill="#D4915E"/>
-          <path d="M43 89 L50 93 L57 89" fill="none" stroke="#B87A45" stroke-width="1.2"/>
-          <path d="M36 85 Q50 90 64 85" fill="none" stroke="#E5DDD4" stroke-width="1.5"/>
-          <rect x="74" y="42" width="3.5" height="42" rx="1.8" fill="#C4956A" transform="rotate(18 75 63)"/>
-          <circle cx="77" cy="38" r="4" fill="#D4915E"/>
-        </svg>
-        <span class="avatar-dot"></span>
-      </div>
+      <div class="brand-mark" aria-hidden="true">●</div>
       <div>
         <strong>老布偶猫回本之路</strong>
         <span>AI量化研究与投资决策工作台</span>
@@ -52,9 +20,9 @@
     </section>
 
     <section class="side-snapshot">
-      <div><span>持仓</span><strong id="sidePositions">--</strong></div>
-      <div><span>策略</span><strong id="sideStrategies">--</strong></div>
-      <div><span>待复盘</span><strong id="sideReviews">--</strong></div>
+      <div><span>持仓</span><strong id="sidePositions">加载中</strong></div>
+      <div><span>策略</span><strong id="sideStrategies">加载中</strong></div>
+      <div><span>待复盘</span><strong id="sideReviews">加载中</strong></div>
     </section>
 
     <nav class="nav-groups" aria-label="主导航">
@@ -64,26 +32,26 @@
       </button>
       <p>研究</p>
       <button class="nav-item" data-view="market" data-title="市场" data-subtitle="市场宽度、成交额、风险偏好和数据来源。">
-        <span class="nav-icon" data-icon="market"></span><span>市场</span><em id="badgeMarket">--</em>
+        <span class="nav-icon" data-icon="market"></span><span>市场</span><em id="badgeMarket">加载中</em>
       </button>
       <button class="nav-item" data-view="strategy" data-title="策略研究" data-subtitle="从自然语言想法到规则确认、数据检查、筛选、回测和体检。">
-        <span class="nav-icon" data-icon="strategy"></span><span>策略研究</span><em id="badgeStrategy">--</em>
+        <span class="nav-icon" data-icon="strategy"></span><span>策略研究</span><em id="badgeStrategy">加载中</em>
       </button>
       <p>执行与跟踪</p>
       <button class="nav-item" data-view="portfolio" data-title="组合" data-subtitle="模拟组合、真实持仓和策略血缘。">
-        <span class="nav-icon" data-icon="portfolio"></span><span>组合</span><em id="badgePortfolio">--</em>
+        <span class="nav-icon" data-icon="portfolio"></span><span>组合</span><em id="badgePortfolio">加载中</em>
       </button>
       <button class="nav-item" data-view="ai" data-title="AI研究员" data-subtitle="围绕市场、策略、回测、组合、持仓和决策记录做解释与诊断。">
         <span class="nav-icon" data-icon="ai"></span><span>AI研究员</span><em>待核验</em>
       </button>
       <button class="nav-item" data-view="reviews" data-title="复盘" data-subtitle="对比模型信号、用户操作和结果偏差。">
-        <span class="nav-icon" data-icon="review"></span><span>复盘</span><em id="badgeReview">--</em>
+        <span class="nav-icon" data-icon="review"></span><span>复盘</span><em id="badgeReview">加载中</em>
       </button>
     </nav>
 
     <section class="system-box">
       <button class="utility-btn" data-view="system" data-title="数据状态" data-subtitle="检查数据源、LLM与本地版本。"><span class="nav-icon" data-icon="data"></span>数据状态</button>
-      <div class="system-line"><span id="sideDataStatus">数据检查中</span><span id="sideLlmStatus">LLM --</span></div>
+      <div class="system-line"><span id="sideDataStatus">数据检查中</span><span id="sideLlmStatus">LLM 检查中</span></div>
       <small>v3.1 · local first · no broker connection</small>
     </section>
   </aside>
@@ -97,16 +65,18 @@
         <p id="pageSubtitle">每天打开后先看市场、组合、策略和复盘优先级。</p>
       </div>
       <div class="header-actions">
+        <label class="global-search" aria-label="全局搜索"><span class="nav-icon" data-icon="search"></span><input id="globalSearch" placeholder="搜索股票、策略、组合或指标"></label>
         <span id="lastUpdated" class="status-pill muted">尚未刷新</span>
-        <button id="refreshAllBtn" class="secondary">刷新</button>
+        <button id="refreshAllBtn" class="icon-btn secondary" title="刷新全部数据" aria-label="刷新全部数据"><span class="nav-icon" data-icon="refresh"></span></button>
       </div>
     </header>
 
     <section id="overview" class="view active">
       <div id="overviewMetrics" class="summary-grid skeleton-grid"></div>
+      <section id="dailyConclusion" class="daily-conclusion"></section>
       <section class="work-card panorama-card">
         <div class="card-head">
-          <div><h2>行情全景</h2><p id="panoramaMeta" class="card-subtitle">正在读取真实行情结构</p></div>
+          <div><h2 class="section-title">指数与市场宽度</h2><p id="panoramaMeta" class="card-subtitle">正在读取真实行情结构</p></div>
           <div class="chart-tools">
             <button class="seg active" data-range="40">40日</button>
             <button class="seg" data-range="20">20日</button>
@@ -148,12 +118,16 @@
       <div class="tab-panel active" data-panel="market:radar">
         <div id="marketRadarGrid" class="summary-grid"></div>
         <section id="marketRegimeCard" class="work-card"></section>
+        <div class="market-diagnosis-grid">
+          <section id="marketEvidencePanel" class="work-card"></section>
+          <section id="rotationPanel" class="work-card"></section>
+        </div>
       </div>
       <div class="tab-panel" data-panel="market:breadth">
         <section id="marketBreadthPanel" class="work-card"></section>
       </div>
       <div class="tab-panel" data-panel="market:watch">
-        <section class="empty-state"><img src="/assets/mascot-reference.jpg" alt=""><h2>观察池暂无真实标的</h2><p>保存策略筛选结果或添加自选后，这里会展示可追踪标的；当前不会用示例股票填充页面。</p></section>
+        <section id="watchlistPanel" class="work-card"></section>
       </div>
     </section>
 
@@ -183,7 +157,7 @@
       <div class="tab-panel" data-panel="strategy:factors">
         <section class="factor-layout">
           <div class="work-card">
-            <div class="card-head"><h2>因子库</h2><span id="factorCountTag" class="status-pill muted">--</span></div>
+            <div class="card-head"><h2>因子库</h2><span id="factorCountTag" class="status-pill muted">加载中</span></div>
             <div id="factorCategories" class="factor-categories"></div>
             <div id="factorTable" class="table-wrap"></div>
           </div>
@@ -240,7 +214,8 @@
       <div class="tabbar">
         <button class="tab active" data-tab-target="portfolio" data-tab="paper">模拟组合</button>
         <button class="tab" data-tab-target="portfolio" data-tab="real">真实持仓</button>
-        <button class="tab" data-tab-target="portfolio" data-tab="lineage">策略血缘</button>
+        <button class="tab" data-tab-target="portfolio" data-tab="analysis">组合分析</button>
+        <button class="tab" data-tab-target="portfolio" data-tab="curve">策略曲线</button>
       </div>
       <div class="tab-panel active" data-panel="portfolio:paper">
         <section class="work-card">
@@ -249,19 +224,32 @@
         </section>
       </div>
       <div class="tab-panel" data-panel="portfolio:real">
+        <div class="section-toolbar"><div><strong>真实持仓与交易流水</strong><span>所有改动需确认，并保留可追溯记录</span></div><button id="openImportBtn">导入持仓</button></div>
         <section id="holdingsPanel" class="work-card"></section>
+        <section class="work-card"><div class="card-head"><h2>交易流水</h2><span id="transactionCount" class="status-pill muted">加载中</span></div><div id="transactionPanel"></div></section>
       </div>
-      <div class="tab-panel" data-panel="portfolio:lineage">
+      <div class="tab-panel" data-panel="portfolio:analysis">
+        <div id="portfolioOverview" class="summary-grid portfolio-summary-grid"></div>
         <section id="lineagePanel" class="work-card"></section>
       </div>
+      <div class="tab-panel" data-panel="portfolio:curve"><section id="portfolioCurvePanel" class="work-card"></section></div>
     </section>
 
     <section id="ai" class="view">
-      <section class="work-card">
-        <div class="card-head"><h2>选择分析对象</h2><span class="status-pill warning">输出需待核验</span></div>
-        <div class="ai-grid" id="aiTaskGrid"></div>
-        <div id="aiOutput" class="ai-output"></div>
-      </section>
+      <div class="ai-workbench">
+        <section class="work-card ai-conversation">
+          <div class="card-head"><div><h2 class="section-title">研究任务</h2><p class="card-subtitle">结论会标出数据依据、不确定性与待确认动作。</p></div><span class="status-pill warning">输出需核验</span></div>
+          <div class="ai-grid" id="aiTaskGrid"></div>
+          <div class="committee-launch"><div><strong>老布偶猫投资委员会</strong><span>基本面、估值、行业、趋势、风险与反方独立取证，由主席汇总</span></div><select id="committeePosition"><option value="">选择真实持仓</option></select><button id="runCommitteeBtn">审查持仓逻辑</button></div>
+          <div id="committeePanel" class="committee-panel"></div>
+          <div id="aiTranscript" class="ai-transcript"></div>
+          <div class="ai-composer">
+            <textarea id="aiPrompt" rows="3" placeholder="例如：解释当前市场偏弱的主要依据，并说明对我的持仓有什么影响。"></textarea>
+            <div class="composer-actions"><span>AI 不会自动交易或修改组合</span><button id="runAiBtn">开始分析</button></div>
+          </div>
+        </section>
+        <aside class="work-card ai-evidence"><div class="card-head"><h2>证据与工具</h2><span id="aiRunStatus" class="status-pill muted">等待任务</span></div><div id="aiOutput" class="ai-output"></div></aside>
+      </div>
     </section>
 
     <section id="reviews" class="view">
@@ -285,7 +273,7 @@
   </main>
 
   <aside class="rightbar">
-    <div class="rightbar-title"><span class="mini-cat mini-cat-svg"><span class="cat-face"></span>老布偶猫盯盘</span></div>
+    <div class="rightbar-title">研究状态</div>
     <div id="contextBody" class="context-body"></div>
   </aside>
 
@@ -293,6 +281,20 @@
     <span class="cat-face"></span>
     <span>问老布偶猫</span>
   </button>
+  <dialog id="positionImportDialog" class="workflow-dialog">
+    <form method="dialog" class="dialog-shell">
+      <div class="card-head"><div><h2>导入真实持仓</h2><p class="card-subtitle">先解析与校验，确认后才写入数据库</p></div><button class="icon-button" value="cancel" title="关闭" aria-label="关闭">×</button></div>
+      <div class="import-methods" role="tablist">
+        <button type="button" class="tab active" data-import-method="manual">手工录入</button>
+        <button type="button" class="tab" data-import-method="paste">粘贴表格</button>
+        <button type="button" class="tab" data-import-method="file">CSV / Excel</button>
+        <button type="button" class="tab" data-import-method="paper">从模拟组合</button>
+      </div>
+      <div id="importInputPanel" class="import-input"></div>
+      <div id="importPreviewPanel" class="import-preview"></div>
+      <div class="dialog-actions"><button type="button" id="parseImportBtn" class="secondary">解析并预览</button><button type="button" id="commitImportBtn" disabled>确认导入</button></div>
+    </form>
+  </dialog>
   <div id="toast" class="toast"></div>
   <script src="/static/vendor/lightweight-charts/lightweight-charts.standalone.production.js"></script>
   <script src="/static/js/api.js"></script>

@@ -23,7 +23,12 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 from app.api.quant_workbench import register_quant_workbench
+from app.repositories.database import list_positions
 from app.services.data.registry import registry as market_registry
+from app.services.data.service import data_provider
+from app.services.market import build_market_panorama
+from app.services.portfolio import build_portfolio_analytics
+from app.services.stocks import catalog_status, search_stocks, warm_stock_catalog
 from config import ALLOWED_ORIGINS, PORT, PROJECT_DIR, PYTHON_BIN, WYCKOFF_BIN
 
 app = Flask(
@@ -70,6 +75,7 @@ _cache_lock = threading.Lock()
 CACHE_TTL = {"market": 180, "market_fast": 15, "screen_full": 300, "screen_events": 180,
              "stock_catalog": 86400}
 _market_refreshing = False
+threading.Thread(target=warm_stock_catalog, daemon=True).start()
 
 def _cache_get(key):
     entry = _cache.get(key)
@@ -86,9 +92,9 @@ def _empty_market_data(data_source="refreshing"):
         "data_source": data_source,
         "ready": False,
         "indices": {
-            "sh": {"name": "上证指数", "value": 0, "change_pct": 0, "amount_yi": 0, "date": ""},
-            "sz": {"name": "深证成指", "value": 0, "change_pct": 0, "amount_yi": 0, "date": ""},
-            "cy": {"name": "创业板指", "value": 0, "change_pct": 0, "amount_yi": 0, "date": ""},
+            "sh": {"name": "上证指数", "value": None, "change_pct": None, "amount_yi": None, "date": None},
+            "sz": {"name": "深证成指", "value": None, "change_pct": None, "amount_yi": None, "date": None},
+            "cy": {"name": "创业板指", "value": None, "change_pct": None, "amount_yi": None, "date": None},
         },
         "regime": None,
         "hot_sectors": [],
@@ -215,6 +221,18 @@ def _looks_like_legacy_demo(holdings):
 
 def get_holdings_with_defaults():
     """优先返回用户持仓；空环境返回明确标记的内置示例组合。"""
+    positions = list_positions()
+    if positions:
+        return [{
+            **position,
+            "code": position["symbol"],
+            "cost": position.get("cost_price"),
+            "shares": position.get("quantity"),
+            "sector": position.get("industry") or "未知",
+            "strategy": position.get("strategy_id") or "review",
+            "suggestion": position.get("original_thesis") or "等待投委会审查原始持仓逻辑",
+            "is_demo": False,
+        } for position in positions], True
     user = load_holdings()
     if user is not None and not _looks_like_legacy_demo(user):
         return user, True
@@ -313,52 +331,7 @@ def _normalize_stock_query(value):
 
 
 def search_stock_catalog(query, limit=8):
-    normalized = _normalize_stock_query(query)
-    if not normalized:
-        return []
-    cache_key = "stock_search_" + hashlib.sha1(normalized.encode()).hexdigest()[:16]
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return cached[:limit]
-
-    if normalized.isdigit() and (len(normalized) != 6 or not normalized.startswith(("0", "3", "6", "9"))):
-        return []
-
-    catalog = market_registry.call("get_stock_list")
-    if not catalog.ok:
-        return None
-
-    ranked = []
-    for row in catalog.data:
-        code_value = str(row.get("symbol") or "").zfill(6)
-        prefix = "sh." if code_value.startswith(("6", "9")) else "sz."
-        market, market_label = _stock_market(prefix + code_value)
-        if not market:
-            continue
-        item = {
-            "code": code_value, "name": row.get("name"),
-            "market": market, "market_label": market_label,
-            "source": row.get("source") or "akshare",
-        }
-        code = item["code"].lower()
-        name = item["name"].lower().replace(" ", "")
-        if code == normalized:
-            rank = 0
-        elif name == normalized:
-            rank = 1
-        elif code.startswith(normalized):
-            rank = 2
-        elif name.startswith(normalized):
-            rank = 3
-        elif normalized in name:
-            rank = 4
-        else:
-            continue
-        ranked.append((rank, len(name), code, item))
-    ranked.sort(key=lambda entry: entry[:3])
-    results = [entry[3] for entry in ranked]
-    _cache_set(cache_key, results, "stock_catalog")
-    return results[:limit]
+    return search_stocks(query, limit)
 
 
 def fetch_latest_closes(holdings):
@@ -390,9 +363,9 @@ def fetch_latest_closes(holdings):
         previous_close = float(previous.get("close") or close)
         quotes[item["code"]] = {
             "close": round(close, 2),
-            "change_pct": round((close / previous_close - 1) * 100, 2) if previous_close else 0,
+            "change_pct": round((close / previous_close - 1) * 100, 2) if len(daily.data) > 1 and previous_close else None,
             "volume": latest.get("volume"),
-            "amount_yi": round(float(latest.get("amount") or 0) / 1e8, 2),
+            "amount_yi": round(float(latest["amount"]) / 1e8, 2) if latest.get("amount") is not None else None,
             "date": latest.get("trade_date"),
             "source": latest.get("source") or "akshare",
             "frequency": "1d",
@@ -752,28 +725,37 @@ def api_portfolio_summary():
     has_demo = any(h.get("is_demo") for h in holdings)
     has_real = any(not h.get("is_demo") for h in holdings)
     priced = [h for h in holdings if h.get("price_status") == "ok"]
-    total_value = sum(h["market_value"] for h in priced)
-    total_pnl = sum(h["pnl"] for h in priced)
+    total_value = sum(h["market_value"] for h in priced) if priced else None
+    total_pnl = sum(h["pnl"] for h in priced) if priced else None
     total_cost = sum(float(h.get("cost") or 0) * int(h.get("shares") or 0) for h in priced)
     sc = {}
     for h in holdings:
         s = h.get("strategy", "hold")
         sc[s] = sc.get(s, 0) + 1
     return jsonify({
-        "total_value": round(total_value, 2),
-        "total_pnl": round(total_pnl, 2),
-        "total_pnl_pct": round(total_pnl / total_cost * 100, 2) if total_cost > 0 else None,
+        "total_value": round(total_value, 2) if total_value is not None else None,
+        "total_pnl": round(total_pnl, 2) if total_pnl is not None else None,
+        "total_pnl_pct": round(total_pnl / total_cost * 100, 2) if total_pnl is not None and total_cost > 0 else None,
         "positions": len(holdings),
         "priced_positions": len(priced),
-        "quote_coverage": round(len(priced) / len(holdings) * 100, 1) if holdings else 100,
+        "quote_coverage": round(len(priced) / len(holdings) * 100, 1) if holdings else None,
         "strategy_counts": sc,
         "profit_count": sum(1 for h in priced if h["pnl"] > 0),
         "loss_count": sum(1 for h in priced if h["pnl"] < 0),
         "is_real_data": is_real and has_real,
         "portfolio_kind": "mixed" if has_demo and has_real else "demo" if has_demo else "real" if has_real else "empty",
-        "price_source": "baostock",
+        "price_source": "+".join(sorted({h.get("price_source") for h in priced if h.get("price_source")})) or None,
         "price_frequency": "1d",
+        "missing_fields": {"quotes": "主备行情源均未返回任何持仓价格"} if holdings and not priced else {},
     })
+
+
+@app.route("/api/portfolio/analytics")
+def api_portfolio_analytics():
+    holdings, is_real = get_holdings_with_defaults()
+    result = build_portfolio_analytics(holdings)
+    result["portfolio_kind"] = "real" if is_real else "demo"
+    return jsonify(result)
 
 # ——— 信号 & 推荐操作 ———
 @app.route("/api/signals")
@@ -815,11 +797,14 @@ def api_signals():
                 "source": "user_holding",
             })
     # 补充 screen 事件主线
-    market = build_market_data()
-    hot = market.get("hot_sectors", [])[:3]
+    try:
+        market = build_market_panorama()
+    except Exception:
+        market = build_market_data()
+    hot = (market.get("sectors") or market.get("hot_sectors") or [])[:3]
     for s in hot:
         signals.append({
-            "title": f"热点主线 · {s.get('name', '')} {s.get('change_pct', 0):+}%",
+            "title": f"热点主线 · {s.get('name', '')} {float(s.get('change_pct') or 0):+.2f}%",
             "time": "市场扫描",
             "type": "watching",
             "desc": f"涨停 {s.get('limit_up', '?')} 家，热度 {s.get('heat', '?')} 万",
@@ -881,11 +866,15 @@ def api_strategies():
 def api_analyze():
     data = request.get_json() or {}
     focus = data.get("focus", "all")
+    question = str(data.get("question") or "解释当前组合与市场状态").strip()
 
     holdings, is_real = get_live_holdings()
     if not holdings:
         return jsonify({"ok": False, "error": "请先添加真实持仓"}), 400
-    market = build_market_data()
+    try:
+        market = build_market_panorama()
+    except Exception:
+        market = build_market_data()
 
     # 构建持仓摘要
     holding_lines = []
@@ -901,37 +890,62 @@ def api_analyze():
             f"止损 ¥{h.get('stop_loss', '?')} | 信号: {', '.join(h.get('key_signals', []))}"
         )
 
-    regime = market.get("regime")
-    regime_label = regime.get("regime_label", "暂无") if isinstance(regime, dict) else "暂无"
-    indices = market.get("indices", {})
+    regime = market.get("regime") or {}
+    regime_label = regime.get("label") or regime.get("regime_label") or "暂无"
+    raw_indices = market.get("indices", {})
+    indices = {item.get("id"): item for item in raw_indices} if isinstance(raw_indices, list) else raw_indices
     sh_idx = indices.get("sh", {})
+    hot_sectors = market.get("sectors") or market.get("hot_sectors") or []
+    breadth = market.get("breadth") or {}
+    portfolio_analytics = build_portfolio_analytics(holdings)
+    evidence_bundle = {
+        "market": {
+            "values": {"regime": regime_label, "breadth": breadth, "indices": [{key: item.get(key) for key in ("name", "value", "change_pct", "volatility_20d", "volatility_60d", "as_of", "source")} for item in (raw_indices if isinstance(raw_indices, list) else raw_indices.values())]},
+            "as_of": market.get("as_of"), "sources": market.get("provenance", []), "missing_fields": market.get("missing_fields", {}),
+        },
+        "portfolio": portfolio_analytics,
+    }
 
     prompt = f"""你是威科夫量价分析专家「老布偶猫」，帮助我管理 A 股投资组合。
 
 ## 当前市场环境
 - 市场状态: {regime_label}
 - 上证指数: {sh_idx.get('value', 'N/A')}（{sh_idx.get('change_pct', 0):+.2f}%）
-- 热门板块: {', '.join(s.get('name', '') for s in market.get('hot_sectors', [])[:5])}
-- 指数来源: baostock 日线，日期 {sh_idx.get('date') or '暂无'}
+- 市场宽度: {breadth.get('up_count', 'N/A')}只上涨 / {breadth.get('down_count', 'N/A')}只下跌，上涨比例 {breadth.get('up_ratio', 'N/A')}
+- 热门板块: {', '.join(s.get('name', '') for s in hot_sectors[:5]) or '暂无可靠板块数据'}
+- 指数来源: {sh_idx.get('source') or '来源待确认'}，日期 {sh_idx.get('as_of') or sh_idx.get('date') or market.get('as_of') or '暂无'}
 
 ## 我的持仓
+持仓性质: {"真实持仓" if is_real else "示例持仓，仅用于功能演示"}
 {chr(10).join(holding_lines)}
+
+## 用户问题
+{question}
+
+## 已知数据边界
+- 统一数据证据如下：{json.dumps(evidence_bundle, ensure_ascii=False)}
+- 只可引用上述证据中的值、日期和来源。`missing_fields` 中的项目必须明确列为缺失，不得推测具体数值。
+- 可以基于市场状态、涨跌、持仓盈亏和用户标签，对供应压力、趋势风险、阶段可能性和仓位风险作专业模型推断，但必须明确写成“模型推断”，不能伪装成已观测事实。
+- 不得声称看到了未提供的量价形态、资金流、买卖盘、估值或市场传闻；未提供过的精确支撑/阻力价位不得写成事实。
+- 用户记录的阶段或策略是分析线索，可以用于推断，但需要注明尚未由完整K线与成交量验证。
+- 可以给出加仓、减仓、清仓、持有或继续观察等研究建议，但必须说明这不是个性化投资承诺，且不会自动执行。
 
 ## 任务
 请用以下 JSON 格式输出分析结果（不要额外文字）:
 {{
-  "diagnosis": "组合整体诊断，200字以内，包含威科夫阶段分布评价和操作建议",
-  "risk": "风险提示，150字以内，包含大盘风险、仓位建议、关键风控要点",
+  "diagnosis": "组合整体诊断，200字以内，明确区分数据事实、模型推断和待验证项",
+  "risk": "风险提示，150字以内，可以作压力与阶段推断，但需写明依据和不确定性",
   "adjustments": [
-    {{"stock": "股票名", "action": "加仓/减仓/清仓/持有/试探建仓", "reason": "具体威科夫分析依据"}}
+    {{"stock": "股票名", "action": "加仓/减仓/清仓/持有/继续观察", "reason": "区分数据事实与模型推断的具体依据"}}
   ],
-  "score": 评分0-100的整数,
-  "main_action": "ATTACK/HOLD/TRIM/DEFEND"
+  "score": "证据充分度0-100的整数；缺少个股量价时应相应降低",
+  "main_action": "ATTACK/HOLD/TRIM/DEFEND/WAIT",
+  "disclaimer": "一句明确免责：这是基于有限数据的模型研究意见，不构成收益承诺，执行前需用户自行核验并确认"
 }}"""
 
     # 尝试调 LLM
     llm_output, llm_err = call_llm([
-        {"role": "system", "content": "你是威科夫量价分析专家「老布偶猫」🐱。只用 JSON 格式回复，不要额外解释。"},
+        {"role": "system", "content": "你是严谨且有判断力的A股量化研究助手「老布偶猫」。只用JSON回复。允许基于已知数据作专业压力、阶段与风险推断，但必须标注为模型推断并说明依据；禁止把未提供的数据或精确价位伪装成事实。可以提出待确认操作建议，但绝不自动执行，并必须给出明确免责。"},
         {"role": "user", "content": prompt},
     ], max_tokens=3000)
 
@@ -948,9 +962,13 @@ def api_analyze():
                     "adjustments": {"title": "调仓建议", "items": parsed.get("adjustments", [])},
                     "score": parsed.get("score"),
                     "main_action": parsed.get("main_action"),
+                    "disclaimer": parsed.get("disclaimer") or "这是基于有限数据的模型研究意见，不构成收益承诺；执行前请自行核验并确认。",
                     "generated_at": datetime.now().isoformat(),
                     "model": LLM_MODEL,
                     "source": "llm",
+                    "holdings_kind": "real" if is_real else "demo",
+                    "data_limits": list((market.get("missing_fields") or {}).values()) + list((portfolio_analytics.get("missing_fields") or {}).values()) + ["新闻、公告与机构研报需按明确股票调用 /api/research/<symbol>", "不会自动执行交易或修改组合"],
+                    "evidence": evidence_bundle,
                 })
         except (json.JSONDecodeError, TypeError):
             llm_err = "模型返回格式无法解析"
@@ -1154,6 +1172,11 @@ def api_search_stocks():
         "source": results[0].get("source") if results else "provider_registry",
         "as_of": datetime.now().strftime("%Y-%m-%d"),
     })
+
+
+@app.route("/api/stocks/catalog/status")
+def api_stock_catalog_status():
+    return jsonify(catalog_status())
 
 
 @app.route("/api/portfolio/add", methods=["POST"])
@@ -1899,9 +1922,9 @@ def serve_assets(path):
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("🐱 威科夫投资工作台 v3 · 真实数据驱动 · 老布偶猫主题")
-    print("   数据源: baostock + wyckoff screen")
-    print("   LLM: deepseek-v4-pro")
+    print("老布偶猫量化工作台 · 真实数据驱动")
+    print("   数据层: AKShare/AKTools -> efinance/Tencent/Mootdx/BaoStock -> 本地缓存")
+    print(f"   LLM: {LLM_PROVIDER or '未配置'} / {LLM_MODEL or '未配置'}")
     port = PORT
     print(f"   http://localhost:{port}")
     # 启动后预热市场数据（不阻塞服务启动）

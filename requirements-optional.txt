@@ -9,3 +9,6 @@ qlib==0.9.7
 tradingagents==0.7.0
 yfinance==0.2.65
 
+# Optional licensed enhancement. The application starts without it and only
+# enables this source when TUSHARE_TOKEN is configured.
+tushare>=1.4.24

@@ -37,8 +37,8 @@ def test_index_normalization_uses_first_close_without_fake_curve():
 def test_empty_breadth_does_not_invent_counts():
     breadth = build_breadth([{"pct_change": None}, {"pct_change": "-"}])
     assert breadth["status"] == "empty"
-    assert breadth["total"] == 0
-    assert all(item["count"] == 0 for item in breadth["buckets"])
+    assert breadth["total"] is None
+    assert all(item["count"] is None for item in breadth["buckets"])
 
 
 class PanoramaRegistry:

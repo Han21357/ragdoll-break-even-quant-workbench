@@ -37,3 +37,18 @@ class MarketDataProvider(ABC):
 
     def get_sector_snapshot(self) -> DataResult:
         return DataResult(False, [], [], f"{self.name} sector snapshot unavailable")
+
+    def get_fund_flow(self, symbol: str, days: int = 120) -> DataResult:
+        return DataResult(False, [], [], f"{self.name} fund flow unavailable")
+
+    def get_stock_profile(self, symbol: str) -> DataResult:
+        return DataResult(False, {}, [], f"{self.name} stock profile unavailable")
+
+    def get_research_reports(self, symbol: str, limit: int = 20) -> DataResult:
+        return DataResult(False, [], [], f"{self.name} research reports unavailable")
+
+    def get_stock_news(self, symbol: str, limit: int = 20) -> DataResult:
+        return DataResult(False, [], [], f"{self.name} stock news unavailable")
+
+    def get_announcements(self, symbol: str, limit: int = 20) -> DataResult:
+        return DataResult(False, [], [], f"{self.name} announcements unavailable")
