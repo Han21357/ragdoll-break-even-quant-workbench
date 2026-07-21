@@ -11,7 +11,6 @@ baostock==0.8.9
 akshare==1.18.64
 efinance==0.5.9
 mootdx==0.11.7
-akquant==0.1.3
 SQLAlchemy==2.0.41
 pytest==8.4.1
 

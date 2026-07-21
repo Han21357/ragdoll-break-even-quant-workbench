@@ -5,7 +5,7 @@ License check performed on 2026-07-18.
 | Project | Use | Version / Pin | License | Notes |
 |---|---|---:|---|---|
 | AKShare | Primary A-share data provider | `akshare==1.18.64` | MIT | Wrapped by `app/services/data/providers/akshare_provider.py`. |
-| AKQuant | Backtest adapter boundary | `akquant==0.1.3` | MIT | Kept behind `app/services/backtest/akquant_adapter.py`; local compatibility runner is used when public APIs are unavailable. |
+| AKQuant | Optional backtest adapter boundary | `akquant==0.1.3` | MIT | Listed in `requirements-optional.txt` because its native build is platform-sensitive. The local compatibility runner is used when it is unavailable. |
 | Baostock | Fallback A-share daily data | `baostock==0.8.9` | BSD-style free software license | Normalized to the same fields as AKShare. |
 | Lightweight Charts | Local browser chart rendering | `5.0.8` vendored JS | Apache-2.0 | Local files under `app/static/vendor/lightweight-charts/`; page includes TradingView attribution. |
 | Flask | Web service | `3.1.1` | BSD-3-Clause | Backend API server. |
@@ -22,4 +22,3 @@ License check performed on 2026-07-18.
 | TradingAgents | Optional individual-stock research | `0.7.0` | Apache-2.0 | Experimental module only; outputs do not become strategy signals automatically. |
 
 VectorBT is intentionally not included because of its Commons Clause licensing constraints.
-

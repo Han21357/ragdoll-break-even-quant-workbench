@@ -68,6 +68,8 @@ data + data_date + source + updated_at + completeness
 
 ## 快速开始
 
+推荐使用 Python 3.11。
+
 ```bash
 git clone https://github.com/Han21357/ragdoll-break-even-quant-workbench.git
 cd ragdoll-break-even-quant-workbench
@@ -80,6 +82,8 @@ cp .env.example .env
 ```
 
 打开 [http://localhost:8766](http://localhost:8766)。Tushare、AKTools 和 LLM 密钥均为可选配置，未配置时不影响项目启动。
+
+实验性研究与回测集成列在 `requirements-optional.txt`，请按实际需求选择安装。其中 AKQuant 含平台相关的原生依赖；未安装或当前平台不兼容时，系统会显示适配器限制，并继续使用项目内置的确定性兼容回测器。
 
 ## 验证
 
