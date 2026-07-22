@@ -12,6 +12,7 @@ load_dotenv(PROJECT_DIR / ".env")
 DATA_DIR = Path(os.getenv("RAGDOLL_DATA_DIR", PROJECT_DIR / ".ragdoll_data")).resolve()
 CACHE_DIR = Path(os.getenv("RAGDOLL_CACHE_DIR", DATA_DIR / "cache")).resolve()
 DB_PATH = Path(os.getenv("RAGDOLL_DB_PATH", DATA_DIR / "ragdoll.sqlite3")).resolve()
+HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8766"))
 PUBLIC_DEMO = os.getenv("RAGDOLL_PUBLIC_DEMO", "0").strip().lower() in {"1", "true", "yes", "on"}
 

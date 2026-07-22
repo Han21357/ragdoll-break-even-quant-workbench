@@ -29,7 +29,7 @@ from app.services.data.service import data_provider
 from app.services.market import build_market_panorama
 from app.services.portfolio import build_portfolio_analytics
 from app.services.stocks import catalog_status, search_stocks, warm_stock_catalog
-from config import ALLOWED_ORIGINS, DATA_DIR, PORT, PROJECT_DIR, PUBLIC_DEMO, PYTHON_BIN, WYCKOFF_BIN
+from config import ALLOWED_ORIGINS, DATA_DIR, HOST, PORT, PROJECT_DIR, PUBLIC_DEMO, PYTHON_BIN, WYCKOFF_BIN
 
 app = Flask(
     __name__,
@@ -1938,4 +1938,4 @@ if __name__ == "__main__":
         warm_stock_catalog()
         _kick_market_refresh()
     threading.Thread(target=_warmup, daemon=True).start()
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host=HOST, port=port, debug=False, threaded=True)

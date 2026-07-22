@@ -31,8 +31,9 @@ jobs:
       - name: Build static portfolio artifact
         run: |
           mkdir -p _site/assets _site/files
-          cp site/index.html site/styles.css _site/
+          cp site/index.html site/styles.css site/demo.html _site/
           cp docs/assets/dashboard-overview.png docs/assets/holdings-import.png _site/assets/
+          cp app/static/brand/ragdoll/mascot-cutout.png _site/assets/
           cp output/pdf/ragdoll-quant-workbench-introduction.pdf _site/files/
       - uses: actions/upload-pages-artifact@v3
         with:
