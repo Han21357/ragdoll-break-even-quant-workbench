@@ -2,7 +2,7 @@
 
 > 一款有温度、可追溯、以真实数据驱动的个人投资研究与复盘工作台。
 
-[项目介绍 PDF](output/pdf/ragdoll-quant-workbench-introduction.pdf) · [数据缺失审计](docs/DATA_GAP_AUDIT.md) · [交互审计](INTERACTION_AUDIT.md) · [数据来源说明](docs/DATA_PROVENANCE.md)
+[在线作品展示](https://han21357.github.io/ragdoll-break-even-quant-workbench/) · [项目介绍 PDF](output/pdf/ragdoll-quant-workbench-introduction.pdf) · [数据缺失审计](docs/DATA_GAP_AUDIT.md) · [交互审计](INTERACTION_AUDIT.md) · [数据来源说明](docs/DATA_PROVENANCE.md)
 
 ![老布偶猫量化工作台总览](docs/assets/dashboard-overview.png)
 

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="老布偶猫量化工作台：真实数据、可解释策略、AI 投委会与投资复盘闭环。">
+  <title>老布偶猫量化工作台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="返回顶部">
+      <span class="brand-mark" aria-hidden="true">猫</span>
+      <span>老布偶猫量化工作台</span>
+    </a>
+    <nav aria-label="主要导航">
+      <a href="#workflow">工作流</a>
+      <a href="#product">产品界面</a>
+      <a href="https://github.com/Han21357/ragdoll-break-even-quant-workbench" target="_blank" rel="noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">A-SHARE QUANT RESEARCH WORKBENCH</p>
+        <h1>老布偶猫量化工作台</h1>
+        <p class="lead">把市场观察、策略研究、模拟组合、AI 投委会、决策记录与到期复盘，连接成一条可追溯的投资研究工作流。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#product">查看产品界面</a>
+          <a class="button secondary" href="files/ragdoll-quant-workbench-introduction.pdf" target="_blank">阅读项目介绍 PDF</a>
+        </div>
+        <dl class="hero-facts">
+          <div><dt>数据原则</dt><dd>来源、日期、完整度可见</dd></div>
+          <div><dt>研究原则</dt><dd>结论关联原始证据</dd></div>
+          <div><dt>产品边界</dt><dd>研究辅助，不构成投资建议</dd></div>
+        </dl>
+      </div>
+      <figure class="hero-preview">
+        <img src="assets/dashboard-overview.png" alt="老布偶猫量化工作台市场总览界面">
+      </figure>
+    </section>
+
+    <section class="workflow-band" id="workflow">
+      <div class="section-heading">
+        <p class="eyebrow">EVIDENCE-FIRST WORKFLOW</p>
+        <h2>从行情到复盘，不丢失判断依据</h2>
+        <p>每个环节保存数据时间、来源和缺失原因，让后来的人能够还原当时为什么形成判断。</p>
+      </div>
+      <ol class="workflow">
+        <li><span>01</span><strong>观察市场</strong><small>指数、宽度、板块与轮动</small></li>
+        <li><span>02</span><strong>形成策略</strong><small>股票池、条件与失效边界</small></li>
+        <li><span>03</span><strong>创建组合</strong><small>持仓、交易与风险暴露</small></li>
+        <li><span>04</span><strong>AI 投委会</strong><small>多角色分析与证据引用</small></li>
+        <li><span>05</span><strong>记录决策</strong><small>动作、理由与复盘日期</small></li>
+        <li><span>06</span><strong>到期复盘</strong><small>判断质量与执行偏差</small></li>
+      </ol>
+    </section>
+
+    <section class="product" id="product">
+      <div class="section-heading compact">
+        <p class="eyebrow">REAL PRODUCT SCREENS</p>
+        <h2>专业数据，也保留产品的温度</h2>
+        <p>奶油白与焦糖棕构成品牌基底，涨跌色和图表保持金融工具需要的辨识度；老布偶猫状态会结合时间、行情和持仓压力切换。</p>
+      </div>
+      <figure class="screen-feature">
+        <img src="assets/dashboard-overview.png" alt="市场总览、行情结构和持仓结论">
+        <figcaption><strong>市场总览</strong><span>市场状态、指数表现、涨跌结构与今日关注集中呈现。</span></figcaption>
+      </figure>
+      <figure class="screen-feature reverse">
+        <img src="assets/holdings-import.png" alt="支持股票代码、名称和拼音模糊搜索的持仓导入界面">
+        <figcaption><strong>持仓导入</strong><span>支持代码、名称、全拼与首字母模糊搜索，导入前完成匹配、校验和确认。</span></figcaption>
+      </figure>
+    </section>
+
+    <section class="architecture">
+      <div class="architecture-copy">
+        <p class="eyebrow">DATA &amp; ENGINEERING</p>
+        <h2>统一数据层，明确降级</h2>
+        <p>页面不直接调用第三方接口。DataProvider 负责主备切换、超时重试、缓存、字段标准化和数据血缘；所有数据源失败时展示明确原因，不用静态数字伪装成功。</p>
+      </div>
+      <div class="source-grid" aria-label="主要技术能力">
+        <div><strong>AKShare / AKTools</strong><span>主数据源</span></div>
+        <div><strong>efinance / Mootdx</strong><span>行情备用</span></div>
+        <div><strong>BaoStock / Tencent</strong><span>历史与快照降级</span></div>
+        <div><strong>Flask / SQLite</strong><span>服务与持久化</span></div>
+        <div><strong>LangGraph</strong><span>AI 研究工作流</span></div>
+        <div><strong>pytest / Actions</strong><span>自动验证</span></div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <p class="eyebrow">OPEN SOURCE PORTFOLIO</p>
+      <h2>查看完整实现与设计说明</h2>
+      <p>源码、架构、数据缺口审计、交互审计和可重复生成的项目介绍均已公开。</p>
+      <div class="hero-actions center">
+        <a class="button primary" href="https://github.com/Han21357/ragdoll-break-even-quant-workbench" target="_blank" rel="noreferrer">查看 GitHub 仓库</a>
+        <a class="button secondary" href="files/ragdoll-quant-workbench-introduction.pdf" target="_blank">下载项目介绍</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>老布偶猫量化工作台</span>
+    <span>数据驱动 · 专业可信 · 温暖陪伴</span>
+  </footer>
+</body>
+</html>

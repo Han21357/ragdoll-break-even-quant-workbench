@@ -1,0 +1,42 @@
+name: Deploy portfolio page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/assets/**"
+      - "output/pdf/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Build static portfolio artifact
+        run: |
+          mkdir -p _site/assets _site/files
+          cp site/index.html site/styles.css _site/
+          cp docs/assets/dashboard-overview.png docs/assets/holdings-import.png _site/assets/
+          cp output/pdf/ragdoll-quant-workbench-introduction.pdf _site/files/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
