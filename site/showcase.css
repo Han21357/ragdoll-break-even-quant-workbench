@@ -1,0 +1,24 @@
+.showcase-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 7px 12px;
+  border: 1px solid #d9c6aa;
+  border-radius: 6px;
+  background: #fff9ef;
+  color: #6b4a2b;
+  font-size: 11px;
+}
+
+.showcase-banner strong { flex: 0 0 auto; }
+.showcase-banner span { min-width: 0; }
+.static-showcase .system-box small { color: var(--text-muted); }
+
+@media (max-width: 767px) {
+  .showcase-banner {
+    align-items: flex-start;
+    font-size: 10px;
+  }
+}

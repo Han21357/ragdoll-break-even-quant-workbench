@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "app/templates/index.html"
+      - "app/static/**"
+      - "scripts/build_static_showcase.py"
       - "docs/assets/**"
       - "output/pdf/**"
       - ".github/workflows/pages.yml"
@@ -31,7 +34,12 @@ jobs:
       - name: Build static portfolio artifact
         run: |
           mkdir -p _site/assets _site/files
-          cp site/index.html site/styles.css site/demo.html _site/
+          cp site/index.html site/styles.css _site/
+          python scripts/build_static_showcase.py app/templates/index.html _site/demo.html site/fixtures.json
+          cp site/fixtures.json _site/fixtures.json
+          cp -R app/static _site/static
+          cp site/api-static.js _site/static/js/api-static.js
+          cp site/showcase.css _site/static/css/showcase.css
           cp docs/assets/dashboard-overview.png docs/assets/holdings-import.png _site/assets/
           cp app/static/brand/ragdoll/mascot-cutout.png _site/assets/
           cp output/pdf/ragdoll-quant-workbench-introduction.pdf _site/files/

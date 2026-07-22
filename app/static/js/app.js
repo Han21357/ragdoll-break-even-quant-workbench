@@ -1,6 +1,8 @@
 const api = window.RagdollAPI;
 const $ = (id) => document.getElementById(id);
 const html = (value) => String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+const staticRoot = document.documentElement.dataset.staticRoot || "";
+const asset = (path) => staticRoot ? `${staticRoot}${path}` : path;
 
 const state = {
   view: "overview",
@@ -227,7 +229,8 @@ function setView(view, title, subtitle, updateHistory = true) {
   $("pageTitle").textContent = title || view;
   $("breadcrumbNow").textContent = title || view;
   $("pageSubtitle").textContent = subtitle || "";
-  if (updateHistory && window.location.pathname !== "/") window.history.pushState({ view }, "", "/");
+  if (updateHistory && staticRoot) window.history.replaceState({ view }, "", `#${view}`);
+  else if (updateHistory && window.location.pathname !== "/") window.history.pushState({ view }, "", "/");
   updatePageMood(view);
   renderContext();
 }
@@ -472,7 +475,7 @@ function renderDailyConclusion() {
     tone = "info";
   }
   const sector = marketSectors()[0];
-  $("dailyConclusion").innerHTML = `<img class="integrated-mascot" src="/static/brand/ragdoll/mascot-cutout.png" alt="正在整理市场证据的老布偶猫"><div class="conclusion-copy">
+  $("dailyConclusion").innerHTML = `<img class="integrated-mascot" src="${asset("/static/brand/ragdoll/mascot-cutout.png")}" alt="正在整理市场证据的老布偶猫"><div class="conclusion-copy">
     <span class="eyebrow">老布偶猫今日结论 · ${html(panorama.as_of || breadth.as_of || "日期待确认")}</span>
     <h2>${html(title)}</h2><p>${html(description)}</p>
     <div class="conclusion-actions"><span class="status-pill ${tone}">${html(regime.label || "市场状态待确认")}</span><button class="secondary" data-jump-view="${tone === "down" ? "portfolio" : "market"}">${html(action)}</button></div>
@@ -796,7 +799,7 @@ function renderIdeaStep() {
     "回撤后重新站上均线",
     "排除 ST 和流动性不足标的",
   ];
-  return `<div class="strategy-input-composition"><img class="integrated-mascot" src="/static/brand/ragdoll/mascot-cutout.png" alt="陪伴梳理策略规则的老布偶猫"><div><h2>表达投资想法</h2>
+  return `<div class="strategy-input-composition"><img class="integrated-mascot" src="${asset("/static/brand/ragdoll/mascot-cutout.png")}" alt="陪伴梳理策略规则的老布偶猫"><div><h2>表达投资想法</h2>
     <p class="notice">示例只会填充输入框，不会自动生成股票或收益。</p>
     <div class="example-list">${examples.map((x) => `<button class="example-chip" data-example="${html(x)}">${html(x)}</button>`).join("")}</div>
     <textarea id="ideaInput">${html(state.strategyDraft?.idea || "找价格低于100元、最近没有进入下行通道、近5日没有大涨、行业景气较强、机构关注增加的股票。")}</textarea>
@@ -1237,7 +1240,7 @@ function renderPortfolio() {
   const summary = state.portfolioSummary || {};
   const analytics = state.portfolioAnalytics || {};
   const metrics = analytics.metrics || {};
-  $("portfolioOverview").innerHTML = `<article class="portfolio-mascot-insight"><img src="/static/brand/ragdoll/mascot-cutout.png" alt="正在检查组合风险的老布偶猫"><div><strong>${html(portfolioRiskLabel())}</strong><p>${html(portfolioRiskExplanation())}</p></div></article>` + [
+  $("portfolioOverview").innerHTML = `<article class="portfolio-mascot-insight"><img src="${asset("/static/brand/ragdoll/mascot-cutout.png")}" alt="正在检查组合风险的老布偶猫"><div><strong>${html(portfolioRiskLabel())}</strong><p>${html(portfolioRiskExplanation())}</p></div></article>` + [
     summaryCard("组合市值", metrics.market_value != null ? money(metrics.market_value) : "无法计算", `${summary.priced_positions ?? 0}/${summary.positions ?? 0} 只行情可用`, "portfolio", "brand"),
     summaryCard("累计收益", metrics.cumulative_return_pct != null ? pct(metrics.cumulative_return_pct) : "无法计算", `今日 ${metrics.today_return_pct == null ? missingReason("today_return_pct", analytics) : pct(metrics.today_return_pct)}`, "portfolio", toneFromNumber(metrics.cumulative_return_pct)),
     summaryCard("最大回撤", metrics.max_drawdown_pct != null ? pct(metrics.max_drawdown_pct) : "无法计算", metrics.max_drawdown_pct == null ? missingReason("price", analytics) : `截至 ${analytics.as_of}`, "portfolio", "warning"),
@@ -1551,7 +1554,7 @@ function renderAiTasks() {
     renderAiOutput(state.aiTask);
     if (!state.aiRunning) runAiAnalysis();
   }));
-  $("aiTranscript").innerHTML = `<div class="ai-welcome"><img src="/static/brand/ragdoll/mascot-cutout.png" alt="等待研究任务的老布偶猫"><div><span class="eyebrow">老布偶猫研究员</span><h3>今天想先研究什么？</h3><p>选择一个快捷任务，或直接写下问题。我会调用统一数据层，并把证据值、日期、来源、缺失项和需要确认的动作分开列出。</p></div></div>`;
+  $("aiTranscript").innerHTML = `<div class="ai-welcome"><img src="${asset("/static/brand/ragdoll/mascot-cutout.png")}" alt="等待研究任务的老布偶猫"><div><span class="eyebrow">老布偶猫研究员</span><h3>今天想先研究什么？</h3><p>选择一个快捷任务，或直接写下问题。我会调用统一数据层，并把证据值、日期、来源、缺失项和需要确认的动作分开列出。</p></div></div>`;
   renderAiOutput("市场");
 }
 
@@ -1661,7 +1664,7 @@ function renderReviews() {
     <div class="row-cell">观察期<small>${html(p.check_date)}</small></div>
     <div class="row-cell">结果<small>${html(p.status)} / ${html(p.actual_return ?? "待回查")}</small></div>
     <button class="secondary">复盘</button>
-  </div>`).join("") : `<div class="review-empty-composition"><img src="/static/brand/ragdoll/mascot-cutout.png" alt="等待真实决策记录的老布偶猫"><div><h2>暂无决策记录</h2><p>${html(state.reviewMessage || "只有用户确认后记录的观点才会进入复盘；没有记录时不会生成虚假总结。")}</p></div></div>`;
+  </div>`).join("") : `<div class="review-empty-composition"><img src="${asset("/static/brand/ragdoll/mascot-cutout.png")}" alt="等待真实决策记录的老布偶猫"><div><h2>暂无决策记录</h2><p>${html(state.reviewMessage || "只有用户确认后记录的观点才会进入复盘；没有记录时不会生成虚假总结。")}</p></div></div>`;
   $("reviewInsight").innerHTML = [
     insight("样本量提示", stats.completed < 30 ? `真实到期样本 ${stats.completed}/30，当前只能逐条复盘，不能输出策略有效性结论。` : `已有 ${stats.completed} 条真实到期样本，可按市场环境与行动类型分组。`),
     insight("偏差分类", "信息错误、规则错误、参数错误、市场环境变化、执行错误、未遵循信号。"),

@@ -4,6 +4,8 @@
 
 [静态交互演示](https://han21357.github.io/ragdoll-break-even-quant-workbench/demo.html) · [作品展示页](https://han21357.github.io/ragdoll-break-even-quant-workbench/) · [项目介绍 PDF](output/pdf/ragdoll-quant-workbench-introduction.pdf) · [面试讲解指南](docs/INTERVIEW_GUIDE.md)
 
+静态演示与当前产品共用模板、组件样式和前端逻辑，只把后端替换为脱敏快照与浏览器内存操作，因此可在 GitHub Pages 上保持与本地版本一致的视觉和主要交互。
+
 ![老布偶猫量化工作台总览](docs/assets/dashboard-overview.png)
 
 ## 给面试官的 30 秒版本

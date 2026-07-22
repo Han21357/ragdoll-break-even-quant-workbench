@@ -779,7 +779,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 10px;
-  background-image: url("/static/brand/ragdoll/status-sheet.jpg");
+  background-image: url("../brand/ragdoll/status-sheet.jpg");
   background-repeat: no-repeat;
   background-size: 724px 543px;
   background-color: var(--bg-surface);
