@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from config import DATA_DIR, DB_PATH, PROJECT_DIR
+from config import DATA_DIR, DB_PATH, PROJECT_DIR, PUBLIC_DEMO
 
 
 SCHEMA = """
@@ -205,6 +205,8 @@ def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str
 
 
 def migrate_legacy_json() -> None:
+    if PUBLIC_DEMO:
+        return
     legacy_files = [
         (PROJECT_DIR / ".quant_strategies.json", "strategies"),
         (PROJECT_DIR / ".wyckoff_holdings.json", "portfolios"),

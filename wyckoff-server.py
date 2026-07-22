@@ -29,7 +29,7 @@ from app.services.data.service import data_provider
 from app.services.market import build_market_panorama
 from app.services.portfolio import build_portfolio_analytics
 from app.services.stocks import catalog_status, search_stocks, warm_stock_catalog
-from config import ALLOWED_ORIGINS, PORT, PROJECT_DIR, PYTHON_BIN, WYCKOFF_BIN
+from config import ALLOWED_ORIGINS, DATA_DIR, PORT, PROJECT_DIR, PUBLIC_DEMO, PYTHON_BIN, WYCKOFF_BIN
 
 app = Flask(
     __name__,
@@ -43,7 +43,7 @@ register_quant_workbench(app)
 # ============================================================
 # CONSTANTS
 # ============================================================
-HOLDINGS_FILE = PROJECT_DIR / ".wyckoff_holdings.json"
+HOLDINGS_FILE = DATA_DIR / ".wyckoff_holdings.json" if PUBLIC_DEMO else PROJECT_DIR / ".wyckoff_holdings.json"
 DEMO_HOLDINGS_FILE = PROJECT_DIR / "app" / "data" / "demo_holdings.json"
 
 # Always resolve configuration relative to this project, regardless of the
@@ -51,7 +51,12 @@ DEMO_HOLDINGS_FILE = PROJECT_DIR / "app" / "data" / "demo_holdings.json"
 load_dotenv(PROJECT_DIR / ".env")
 
 # —— LLM ——
-if os.getenv("TOKENHUB_API_KEY"):
+if PUBLIC_DEMO:
+    LLM_PROVIDER = None
+    LLM_BASE_URL = ""
+    LLM_API_KEY = ""
+    LLM_MODEL = None
+elif os.getenv("TOKENHUB_API_KEY"):
     LLM_PROVIDER = "TokenHub"
     LLM_BASE_URL = os.getenv("TOKENHUB_BASE_URL", "https://tokenhub.tencentmaas.com/v1")
     LLM_API_KEY = os.getenv("TOKENHUB_API_KEY", "")
@@ -702,7 +707,8 @@ def api_status():
         "llm_model": LLM_MODEL if LLM_API_KEY else None,
         "llm_provider": LLM_PROVIDER if LLM_API_KEY else None,
         "wyckoff_cli_available": bool(WYCKOFF_BIN) and Path(WYCKOFF_BIN).exists(),
-        "data_dir": str(Path.home() / ".wyckoff"),
+        "data_dir": str(DATA_DIR),
+        "public_demo": PUBLIC_DEMO,
         "timestamp": datetime.now().isoformat(),
     })
 

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ragdoll-quant-workbench
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 180 wsgi:app
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: RAGDOLL_PUBLIC_DEMO
+        value: "1"
+      - key: RAGDOLL_DATA_DIR
+        value: /tmp/ragdoll-data
+      - key: RAGDOLL_DB_PATH
+        value: /tmp/ragdoll-data/ragdoll.sqlite3
+      - key: LLM_TIMEOUT_SECONDS
+        value: "30"

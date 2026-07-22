@@ -13,6 +13,7 @@ DATA_DIR = Path(os.getenv("RAGDOLL_DATA_DIR", PROJECT_DIR / ".ragdoll_data")).re
 CACHE_DIR = Path(os.getenv("RAGDOLL_CACHE_DIR", DATA_DIR / "cache")).resolve()
 DB_PATH = Path(os.getenv("RAGDOLL_DB_PATH", DATA_DIR / "ragdoll.sqlite3")).resolve()
 PORT = int(os.getenv("PORT", "8766"))
+PUBLIC_DEMO = os.getenv("RAGDOLL_PUBLIC_DEMO", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 PYTHON_BIN = os.getenv("PYTHON_BIN") or sys.executable
 _legacy_wyckoff = Path.home() / ".workbuddy" / "binaries" / "python" / "envs" / "wyckoff" / "bin" / "wyckoff"
@@ -21,6 +22,8 @@ WYCKOFF_BIN = (
     or shutil.which("wyckoff")
     or (str(_legacy_wyckoff) if _legacy_wyckoff.exists() else "")
 )
+if PUBLIC_DEMO:
+    WYCKOFF_BIN = ""
 
 ALLOWED_ORIGINS = [
     origin.strip()
